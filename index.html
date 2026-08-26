@@ -2,320 +2,230 @@
 <html lang="ms">
 <head>
     <meta charset="UTF-8">
-    <!-- Tag Penting Untuk Responsif Telefon -->
+    <!-- Tag penting supaya paparan telefon tidak terpotong -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Pengurusan Stok Dapur</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
     <style>
-        * {
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            background-color: #f4f6f9;
-            color: #333;
-            padding: 10px;
-        }
-
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        h1 {
-            font-size: 1.4rem;
-            margin-bottom: 15px;
-            text-align: center;
-            color: #2c3e50;
-        }
-
-        /* Navigasi Tab Mesra Telefon */
-        .tab-menu {
-            display: flex;
-            gap: 5px;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #ddd;
-            overflow-x: auto; /* Boleh skrol tepi jika skrin terlalu kecil */
-            white-space: nowrap;
-        }
-
-        .tab-btn {
-            padding: 10px 15px;
-            border: none;
-            background: #e9ecef;
-            cursor: pointer;
-            border-radius: 5px 5px 0 0;
-            font-weight: bold;
-            font-size: 0.9rem;
-            flex: 1;
-            text-align: center;
-        }
-
-        .tab-btn.active {
-            background: #27ae60;
-            color: white;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        /* Form Layout */
-        .form-group {
-            margin-bottom: 12px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            font-size: 0.85rem;
-        }
-
-        input, select, button {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 0.95rem;
-        }
-
-        button.btn-primary {
-            background-color: #27ae60;
-            color: white;
-            border: none;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 5px;
-        }
-
-        button.btn-primary:hover {
-            background-color: #219150;
-        }
-
-        /* Bekas Jadual (Elak Terpotong di Telefon) */
-        .table-responsive {
-            width: 100%;
+        /* Memastikan jadual boleh diskrol ke tepi di skrin kecil tanpa merosakkan susunan */
+        .table-container {
             overflow-x: auto;
-            margin-top: 15px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 500px; /* Memastikan jadual tidak terlalu rapik */
-        }
-
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px 10px;
-            text-align: left;
-            font-size: 0.85rem;
-        }
-
-        th {
-            background-color: #34495e;
-            color: white;
-        }
-
-        .badge {
-            padding: 3px 8px;
-            border-radius: 3px;
-            font-size: 0.75rem;
-            color: white;
-        }
-
-        .badge-low { background-color: #e74c3c; }
-        .badge-ok { background-color: #2ecc71; }
-
-        /* Penyesuaian Telefon */
-        @media (max-width: 600px) {
-            body { padding: 5px; }
-            .container { padding: 10px; }
-            h1 { font-size: 1.2rem; }
-            .tab-btn { font-size: 0.8rem; padding: 8px; }
+            -webkit-overflow-scrolling: touch;
         }
     </style>
 </head>
-<body>
+<body class="bg-gray-100 text-gray-800 antialiased min-h-screen pb-10">
 
-<div class="container">
-    <h1>📦 Pengurusan Stok Dapur</h1>
-
-    <!-- Navigasi 3 Tab Sahaja -->
-    <div class="tab-menu">
-        <button class="tab-btn active" onclick="openTab(event, 'tab1')">1. Senarai Stok</button>
-        <button class="tab-btn" onclick="openTab(event, 'tab2')">2. Stok Masuk</button>
-        <button class="tab-btn" onclick="openTab(event, 'tab3')">3. Rekod Keluar</button>
-    </div>
-
-    <!-- TAB 1: SENARAI STOK -->
-    <div id="tab1" class="tab-content active">
-        <h3>Baki Stok Semasa</h3>
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th>Kuantiti</th>
-                        <th>Unit</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody id="stockTableBody">
-                    <!-- Data dimasukkan guna JS -->
-                </tbody>
-            </table>
+    <!-- Header / Navbar -->
+    <div class="bg-emerald-700 text-white shadow-md p-4 sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <i data-lucide="utensils"></i> Stok Dapur Pro
+            </h1>
+            <span class="text-xs bg-emerald-800 px-3 py-1 rounded-full font-medium">V4.0</span>
         </div>
     </div>
 
-    <!-- TAB 2: STOK MASUK -->
-    <div id="tab2" class="tab-content">
-        <h3>Daftar / Tambah Stok Masuk</h3>
-        <form id="addStockForm">
-            <div class="form-group">
-                <label>Nama Item</label>
-                <input type="text" id="itemName" placeholder="Contoh: Beras, Minyak Masak" required>
-            </div>
-            <div class="form-group">
-                <label>Kuantiti Masuk</label>
-                <input type="number" id="itemQty" step="0.1" min="0" placeholder="0" required>
-            </div>
-            <div class="form-group">
-                <label>Unit</label>
-                <select id="itemUnit">
-                    <option value="KG">KG</option>
-                    <option value="Pek">Pek</option>
-                    <option value="Botol">Botol</option>
-                    <option value="Karton">Karton</option>
-                    <option value="Biji">Biji</option>
-                </select>
-            </div>
-            <button type="submit" class="btn-primary">Simpan Stok Masuk</button>
-        </form>
-    </div>
-
-    <!-- TAB 3: REKOD KELUAR -->
-    <div id="tab3" class="tab-content">
-        <h3>Rekod Penggunaan Dapur</h3>
-        <form id="useStockForm">
-            <div class="form-group">
-                <label>Pilih Item</label>
-                <select id="useItemSelect" required></select>
-            </div>
-            <div class="form-group">
-                <label>Kuantiti Digunakan</label>
-                <input type="number" id="useQty" step="0.1" min="0" placeholder="0" required>
-            </div>
-            <button type="submit" class="btn-primary" style="background-color: #e67e22;">Rekod Keluar</button>
-        </form>
-    </div>
-</div>
-
-<script>
-    // Inisialisasi Data dari LocalStorage
-    let inventory = JSON.parse(localStorage.getItem('dapur_inventory')) || [
-        { name: 'Beras 10kg', qty: 5, unit: 'Pek', min: 2 },
-        { name: 'Minyak Masak 5kg', qty: 1, unit: 'Botol', min: 2 }
-    ];
-
-    function saveData() {
-        localStorage.setItem('dapur_inventory', JSON.stringify(inventory));
-        render();
-    }
-
-    function openTab(evt, tabId) {
-        let contents = document.getElementsByClassName("tab-content");
-        for (let i = 0; i < contents.length; i++) {
-            contents[i].classList.remove("active");
-        }
-        let buttons = document.getElementsByClassName("tab-btn");
-        for (let i = 0; i < buttons.length; i++) {
-            buttons[i].classList.remove("active");
-        }
-        document.getElementById(tabId).classList.add("active");
-        evt.currentTarget.classList.add("active");
-    }
-
-    function render() {
-        // Render Tabel Stok
-        const tbody = document.getElementById('stockTableBody');
-        tbody.innerHTML = '';
+    <div class="max-w-4xl mx-auto p-3 sm:p-6">
         
-        // Render Dropdown Rekod Keluar
-        const select = document.getElementById('useItemSelect');
-        select.innerHTML = '<option value="">-- Pilih Item --</option>';
+        <!-- Tab Navigation (3 Tab Sahaja) -->
+        <div class="flex border-b border-gray-300 mb-6 bg-white rounded-t-lg shadow-sm overflow-x-auto">
+            <button onclick="switchTab('tab1')" id="btn-tab1" class="tab-btn flex-1 py-3 px-4 text-center font-semibold text-emerald-600 border-b-2 border-emerald-600 flex items-center justify-center gap-2 whitespace-nowrap">
+                <i data-lucide="boxes" class="w-4 h-4"></i> 1. Senarai Stok
+            </button>
+            <button onclick="switchTab('tab2')" id="btn-tab2" class="tab-btn flex-1 py-3 px-4 text-center font-semibold text-gray-500 hover:text-emerald-600 flex items-center justify-center gap-2 whitespace-nowrap">
+                <i data-lucide="plus-circle" class="w-4 h-4"></i> 2. Stok Masuk
+            </button>
+            <button onclick="switchTab('tab3')" id="btn-tab3" class="tab-btn flex-1 py-3 px-4 text-center font-semibold text-gray-500 hover:text-emerald-600 flex items-center justify-center gap-2 whitespace-nowrap">
+                <i data-lucide="minus-circle" class="w-4 h-4"></i> 3. Rekod Keluar
+            </button>
+        </div>
 
-        inventory.forEach((item, index) => {
-            // Status Rendah
-            const isLow = item.qty <= (item.min || 2);
-            const badgeClass = isLow ? 'badge-low' : 'badge-ok';
-            const badgeText = isLow ? 'Kritikal' : 'Mencukupi';
+        <!-- TAB 1: SENARAI STOK -->
+        <div id="tab1" class="tab-content bg-white p-4 sm:p-6 rounded-b-lg shadow-sm">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-700">Baki Stok Semasa</h2>
+                <input type="text" id="searchInput" onkeyup="filterStock()" placeholder="Cari item..." class="border rounded-lg px-3 py-1.5 text-sm w-48 sm:w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
 
-            tbody.innerHTML += `
-                <tr>
-                    <td><strong>${item.name}</strong></td>
-                    <td>${item.qty}</td>
-                    <td>${item.unit}</td>
-                    <td><span class="badge ${badgeClass}">${badgeText}</span></td>
-                </tr>
-            `;
+            <div class="table-container border rounded-lg">
+                <table class="w-full text-left border-collapse min-w-[500px]">
+                    <thead>
+                        <tr class="bg-gray-100 border-b text-gray-600 text-sm">
+                            <th class="p-3">Nama Item</th>
+                            <th class="p-3">Baki Stok</th>
+                            <th class="p-3">Unit</th>
+                            <th class="p-3">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stockTableBody" class="divide-y text-sm">
+                        <!-- Data dimasukkan guna JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
-            select.innerHTML += `<option value="${index}">${item.name} (Baki: ${item.qty} ${item.unit})</option>`;
+        <!-- TAB 2: STOK MASUK -->
+        <div id="tab2" class="tab-content hidden bg-white p-4 sm:p-6 rounded-b-lg shadow-sm">
+            <h2 class="text-lg font-bold text-gray-700 mb-4">Tambah / Kemas Kini Stok Masuk</h2>
+            <form id="addStockForm" class="space-y-4 max-w-lg">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nama Item</label>
+                    <input type="text" id="itemName" placeholder="Contoh: Beras Cap Rambutan" required class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Kuantiti Masuk</label>
+                        <input type="number" id="itemQty" step="0.1" min="0" placeholder="0" required class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+                        <select id="itemUnit" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
+                            <option value="KG">KG</option>
+                            <option value="Pek">Pek</option>
+                            <option value="Botol">Botol</option>
+                            <option value="Karton">Karton</option>
+                            <option value="Biji">Biji</option>
+                            <option value="Tin">Tin</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg transition text-sm">
+                    Simpan Stok Masuk
+                </button>
+            </form>
+        </div>
+
+        <!-- TAB 3: REKOD KELUAR -->
+        <div id="tab3" class="tab-content hidden bg-white p-4 sm:p-6 rounded-b-lg shadow-sm">
+            <h2 class="text-lg font-bold text-gray-700 mb-4">Rekod Penggunaan Stok Dapur</h2>
+            <form id="useStockForm" class="space-y-4 max-w-lg">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Pilih Item</label>
+                    <select id="useItemSelect" required class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
+                        <!-- Senarai item dimasukkan guna JS -->
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Kuantiti Digunakan</label>
+                    <input type="number" id="useQty" step="0.1" min="0" placeholder="0" required class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 rounded-lg transition text-sm">
+                    Rekod Stok Keluar
+                </button>
+            </form>
+        </div>
+
+    </div>
+
+    <!-- LOGIK JAVASCRIPT -->
+    <script>
+        // Inisialisasi ikon Lucide
+        lucide.createIcons();
+
+        // Data Stok dari LocalStorage
+        let inventory = JSON.parse(localStorage.getItem('dapur_inventory')) || [
+            { name: 'Beras 10kg', qty: 5, unit: 'Pek', min: 2 },
+            { name: 'Minyak Masak 5kg', qty: 1, unit: 'Botol', min: 2 }
+        ];
+
+        function saveData() {
+            localStorage.setItem('dapur_inventory', JSON.stringify(inventory));
+            render();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('text-emerald-600', 'border-b-2', 'border-emerald-600');
+                btn.classList.add('text-gray-500');
+            });
+
+            document.getElementById(tabId).classList.remove('hidden');
+            const activeBtn = document.getElementById('btn-' + tabId);
+            activeBtn.classList.add('text-emerald-600', 'border-b-2', 'border-emerald-600');
+            activeBtn.classList.remove('text-gray-500');
+        }
+
+        function render() {
+            const tbody = document.getElementById('stockTableBody');
+            const select = document.getElementById('useItemSelect');
+            tbody.innerHTML = '';
+            select.innerHTML = '<option value="">-- Pilih Item --</option>';
+
+            inventory.forEach((item, index) => {
+                const isLow = item.qty <= (item.min || 2);
+                const badge = isLow 
+                    ? `<span class="bg-red-100 text-red-700 px-2.5 py-1 rounded-full text-xs font-medium">Kritikal</span>`
+                    : `<span class="bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-xs font-medium">Mencukupi</span>`;
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 font-medium text-gray-800">${item.name}</td>
+                        <td class="p-3 font-bold">${item.qty}</td>
+                        <td class="p-3 text-gray-500">${item.unit}</td>
+                        <td class="p-3">${badge}</td>
+                    </tr>
+                `;
+
+                select.innerHTML += `<option value="${index}">${item.name} (Baki: ${item.qty} ${item.unit})</option>`;
+            });
+        }
+
+        function filterStock() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const rows = document.querySelectorAll('#stockTableBody tr');
+            rows.forEach(row => {
+                const text = row.cells[0].textContent.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
+        }
+
+        document.getElementById('addStockForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const name = document.getElementById('itemName').value.trim();
+            const qty = parseFloat(document.getElementById('itemQty').value);
+            const unit = document.getElementById('itemUnit').value;
+
+            let existing = inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
+            if (existing) {
+                existing.qty += qty;
+            } else {
+                inventory.push({ name, qty, unit, min: 2 });
+            }
+
+            saveData();
+            this.reset();
+            alert('Stok berjaya dikemas kini!');
+            switchTab('tab1');
         });
-    }
 
-    // Event Listener Tambah Stok
-    document.getElementById('addStockForm').addEventListener('submit', function(e) {
-        e.value = e.preventDefault();
-        const name = document.getElementById('itemName').value.trim();
-        const qty = parseFloat(document.getElementById('itemQty').value);
-        const unit = document.getElementById('itemUnit').value;
+        document.getElementById('useStockForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const index = document.getElementById('useItemSelect').value;
+            const qty = parseFloat(document.getElementById('useQty').value);
 
-        let existing = inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
-        if (existing) {
-            existing.qty += qty;
-        } else {
-            inventory.push({ name, qty, unit, min: 2 });
-        }
+            if (index === '') return;
 
-        saveData();
-        this.reset();
-        alert('Stok berjaya dikemas kini!');
-    });
+            if (inventory[index].qty < qty) {
+                alert('Kuantiti dipinta melebihi baki stok semasa!');
+                return;
+            }
 
-    // Event Listener Stok Keluar
-    document.getElementById('useStockForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const index = document.getElementById('useItemSelect').value;
-        const qty = parseFloat(document.getElementById('useQty').value);
+            inventory[index].qty -= qty;
+            saveData();
+            this.reset();
+            alert('Penggunaan stok berjaya direkodkan!');
+            switchTab('tab1');
+        });
 
-        if (index === '') return;
-
-        if (inventory[index].qty < qty) {
-            alert('Kuantiti dipinta melebihi baki stok semasa!');
-            return;
-        }
-
-        inventory[index].qty -= qty;
-        saveData();
-        this.reset();
-        alert('Penggunaan stok berjaya direkodkan!');
-    });
-
-    // Muat data awal
-    render();
-</script>
-
+        // Muat data awal
+        render();
+    </script>
 </body>
 </html>
