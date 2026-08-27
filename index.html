@@ -7,6 +7,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDK Compat Version -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <style>
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -401,11 +404,11 @@
     </main>
 
     <script>
-        let categories = JSON.parse(localStorage.getItem('rtc_categories_v4')) || [
+        let categories = [
             'Bahan Mentah', 'Inti & Bumbu', 'Pembungkusan', 'Barangan Minuman'
         ];
 
-        let products = JSON.parse(localStorage.getItem('rtc_products_v4')) || [
+        let products = [
             { id: 1, name: 'Tepung Gandum (Kg)', category: 'Bahan Mentah', stock: 50, alertMin: 10, unitPrice: 3.50, dailyUsage: 5.0 },
             { id: 2, name: 'Minyak Sapi (Tin)', category: 'Bahan Mentah', stock: 3, alertMin: 5, unitPrice: 28.00, dailyUsage: 1.2 },
             { id: 3, name: 'Telur Ayam (Papan)', category: 'Bahan Mentah', stock: 0, alertMin: 2, unitPrice: 14.00, dailyUsage: 2.0 },
@@ -413,10 +416,26 @@
             { id: 5, name: 'Plastik Bungkus 6x9', category: 'Pembungkusan', stock: 15, alertMin: 5, unitPrice: 4.50, dailyUsage: 1.0 }
         ];
 
-        let transactions = JSON.parse(localStorage.getItem('rtc_transactions_v4')) || [];
+        let transactions = [];
 
         let chartStokInstance = null;
         let chartPenggunaanInstance = null;
+
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAcxIm0xe1MgHkRSuVeqc4uZgKvF-QB4yo",
+            authDomain: "sistem-stok-rcc.firebaseapp.com",
+            databaseURL: "https://sistem-stok-rcc-default-rtdb.firebaseio.com",
+            projectId: "sistem-stok-rcc",
+            storageBucket: "sistem-stok-rcc.firebasestorage.app",
+            messagingSenderId: "346309061828",
+            appId: "1:346309061828:web:7ebcdbad35bfcfa6002d91",
+            measurementId: "G-LCZSSK4DJY"
+        };
+
+        // Initialize Firebase Realtime Database
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
@@ -425,11 +444,27 @@
             backdrop.classList.toggle('hidden');
         }
 
+        // Simpan data ke Firebase Cloud Realtime Sync
         function saveData() {
-            localStorage.setItem('rtc_categories_v4', JSON.stringify(categories));
-            localStorage.setItem('rtc_products_v4', JSON.stringify(products));
-            localStorage.setItem('rtc_transactions_v4', JSON.stringify(transactions));
+            db.ref('stok_data').set({
+                categories: categories,
+                products: products,
+                transactions: transactions
+            });
         }
+
+        // Mendengar perubahan data Firebase secara Realtime dari semua peranti
+        db.ref('stok_data').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                if (data.categories) categories = data.categories;
+                if (data.products) products = data.products;
+                if (data.transactions) transactions = data.transactions;
+            } else {
+                saveData(); // Simpan data asal jika database baru dibuka
+            }
+            renderAll();
+        });
 
         function switchTab(tab) {
             document.querySelectorAll('main section').forEach(sec => sec.classList.add('hidden'));
@@ -703,7 +738,6 @@
                 categories.push(name);
                 document.getElementById('cat-name').value = '';
                 saveData();
-                renderAll();
             }
         }
 
@@ -732,7 +766,6 @@
 
             resetProductForm();
             saveData();
-            renderAll();
         }
 
         function editProduct(id) {
@@ -763,7 +796,6 @@
             if (confirm('Adakah anda pasti mahu memadam produk ini?')) {
                 products = products.filter(p => p.id !== id);
                 saveData();
-                renderAll();
             }
         }
 
@@ -790,7 +822,6 @@
             transactions.push({ id: Date.now(), date, type, productId, qty, payment, note });
             document.getElementById('form-transaksi').reset();
             saveData();
-            renderAll();
         }
 
         function processQuickStok() {
@@ -816,7 +847,6 @@
             
             document.getElementById('quick-qty').value = '';
             saveData();
-            renderAll();
         }
 
         function updateQuickCountDisplay() {
@@ -861,7 +891,6 @@
 
             document.getElementById('quick-count-qty').value = '';
             saveData();
-            renderAll();
         }
 
         function saveAuditRow(id) {
@@ -890,13 +919,10 @@
             }
 
             saveData();
-            renderAll();
         }
 
         document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
         document.getElementById('quick-count-qty').addEventListener('input', updateQuickCountDisplay);
-
-        renderAll();
     </script>
 </body>
 </html>
