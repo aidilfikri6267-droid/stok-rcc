@@ -7,9 +7,74 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Firebase SDK Compat Version -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    
+    <!-- Firebase SDK (Modular ESM Core & Firestore) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Konfirmasi Kunci Konfigurasi Firebase Anda
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Initialize Firebase & Firestore
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Fungsi Simpan Data ke Firebase Firestore
+        window.saveData = async function() {
+            try {
+                // Simpan ke peranti tempatan sebagai sandaran tempatan
+                localStorage.setItem('rtc_categories_v4', JSON.stringify(window.categories));
+                localStorage.setItem('rtc_products_v4', JSON.stringify(window.products));
+                localStorage.setItem('rtc_transactions_v4', JSON.stringify(window.transactions));
+
+                // Simpan/Sinki data ke Cloud Firestore
+                await setDoc(doc(db, "stok_roti_canai", "app_data"), {
+                    categories: window.categories,
+                    products: window.products,
+                    transactions: window.transactions
+                });
+            } catch (error) {
+                console.error("Ralat menyimpan data ke Firebase:", error);
+            }
+        };
+
+        // Fungsi Ambil Data dari Firebase Firestore (Masa Nyata / Realtime)
+        function loadFirebaseData() {
+            onSnapshot(doc(db, "stok_roti_canai", "app_data"), (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.categories) window.categories = data.categories;
+                    if (data.products) window.products = data.products;
+                    if (data.transactions) window.transactions = data.transactions;
+                    
+                    // Kemaskini semula rekod tempatan & render paparan
+                    localStorage.setItem('rtc_categories_v4', JSON.stringify(window.categories));
+                    localStorage.setItem('rtc_products_v4', JSON.stringify(window.products));
+                    localStorage.setItem('rtc_transactions_v4', JSON.stringify(window.transactions));
+                    
+                    if (typeof window.renderAll === 'function') {
+                        window.renderAll();
+                    }
+                }
+            }, (error) => {
+                console.error("Ralat mengambil data dari Firebase:", error);
+            });
+        }
+
+        // Panggil penarik data Firebase apabila halaman dimuatkan
+        window.addEventListener('DOMContentLoaded', () => {
+            loadFirebaseData();
+        });
+    </script>
+
     <style>
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -20,7 +85,7 @@
     <!-- Mobile Overlay Backdrop -->
     <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden"></div>
 
-    <!-- Sidebar Responsive (Hidden by default on mobile, slide in when toggled) -->
+    <!-- Sidebar Responsive -->
     <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0 border-r border-slate-800 transition-transform duration-300 -translate-x-full md:translate-x-0">
         <div class="p-5 border-b border-slate-800 flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -58,7 +123,6 @@
     <main class="flex-1 flex flex-col overflow-y-auto custom-scroll w-full">
         <header class="bg-white shadow-sm border-b px-4 md:px-6 py-3 flex justify-between items-center sticky top-0 z-20">
             <div class="flex items-center gap-3">
-                <!-- Hamburger Button for Mobile/Tablet -->
                 <button onclick="toggleSidebar()" class="md:hidden text-gray-600 hover:text-gray-900 focus:outline-none p-1">
                     <i class="fa-solid fa-bars text-xl"></i>
                 </button>
@@ -404,11 +468,11 @@
     </main>
 
     <script>
-        let categories = [
+        window.categories = JSON.parse(localStorage.getItem('rtc_categories_v4')) || [
             'Bahan Mentah', 'Inti & Bumbu', 'Pembungkusan', 'Barangan Minuman'
         ];
 
-        let products = [
+        window.products = JSON.parse(localStorage.getItem('rtc_products_v4')) || [
             { id: 1, name: 'Tepung Gandum (Kg)', category: 'Bahan Mentah', stock: 50, alertMin: 10, unitPrice: 3.50, dailyUsage: 5.0 },
             { id: 2, name: 'Minyak Sapi (Tin)', category: 'Bahan Mentah', stock: 3, alertMin: 5, unitPrice: 28.00, dailyUsage: 1.2 },
             { id: 3, name: 'Telur Ayam (Papan)', category: 'Bahan Mentah', stock: 0, alertMin: 2, unitPrice: 14.00, dailyUsage: 2.0 },
@@ -416,26 +480,10 @@
             { id: 5, name: 'Plastik Bungkus 6x9', category: 'Pembungkusan', stock: 15, alertMin: 5, unitPrice: 4.50, dailyUsage: 1.0 }
         ];
 
-        let transactions = [];
+        window.transactions = JSON.parse(localStorage.getItem('rtc_transactions_v4')) || [];
 
         let chartStokInstance = null;
         let chartPenggunaanInstance = null;
-
-        // Firebase Configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyAcxIm0xe1MgHkRSuVeqc4uZgKvF-QB4yo",
-            authDomain: "sistem-stok-rcc.firebaseapp.com",
-            databaseURL: "https://sistem-stok-rcc-default-rtdb.firebaseio.com",
-            projectId: "sistem-stok-rcc",
-            storageBucket: "sistem-stok-rcc.firebasestorage.app",
-            messagingSenderId: "346309061828",
-            appId: "1:346309061828:web:7ebcdbad35bfcfa6002d91",
-            measurementId: "G-LCZSSK4DJY"
-        };
-
-        // Initialize Firebase Realtime Database
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
 
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
@@ -443,28 +491,6 @@
             sidebar.classList.toggle('-translate-x-full');
             backdrop.classList.toggle('hidden');
         }
-
-        // Simpan data ke Firebase Cloud Realtime Sync
-        function saveData() {
-            db.ref('stok_data').set({
-                categories: categories,
-                products: products,
-                transactions: transactions
-            });
-        }
-
-        // Mendengar perubahan data Firebase secara Realtime dari semua peranti
-        db.ref('stok_data').on('value', (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                if (data.categories) categories = data.categories;
-                if (data.products) products = data.products;
-                if (data.transactions) transactions = data.transactions;
-            } else {
-                saveData(); // Simpan data asal jika database baru dibuka
-            }
-            renderAll();
-        });
 
         function switchTab(tab) {
             document.querySelectorAll('main section').forEach(sec => sec.classList.add('hidden'));
@@ -485,7 +511,6 @@
             };
             document.getElementById('page-title').innerText = titles[tab] || 'DASHBOARD';
 
-            // Close sidebar automatically on mobile after switching tab
             if (window.innerWidth < 768) {
                 const sidebar = document.getElementById('sidebar');
                 const backdrop = document.getElementById('sidebar-backdrop');
@@ -509,7 +534,7 @@
 
         function renderCategories() {
             const catList = document.getElementById('cat-list');
-            catList.innerHTML = categories.map(c => `
+            catList.innerHTML = window.categories.map(c => `
                 <span class="bg-slate-100 text-slate-700 text-xs px-2.5 py-1 rounded-full border flex items-center gap-1 font-medium">
                     ${c}
                 </span>
@@ -517,268 +542,239 @@
         }
 
         function renderProductDropdowns() {
-            const prodOptions = products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            const prodOptions = window.products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
             
             document.getElementById('quick-product').innerHTML = prodOptions;
             document.getElementById('quick-count-product').innerHTML = prodOptions;
             document.getElementById('tx-product').innerHTML = prodOptions;
-
-            const catOptions = `<option value="ALL">Semua Kategori</option>` + categories.map(c => `<option value="${c}">${c}</option>`).join('');
-            document.getElementById('prod-cat').innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+            
+            const catOptions = `<option value="ALL">Semua Kategori</option>` + window.categories.map(c => `<option value="${c}">${c}</option>`).join('');
+            document.getElementById('prod-cat').innerHTML = window.categories.map(c => `<option value="${c}">${c}</option>`).join('');
             document.getElementById('filter-inventory-cat').innerHTML = catOptions;
 
-            const chartProdOptions = `<option value="ALL">Semua Produk</option>` + products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            const chartProdOptions = `<option value="ALL">Semua Produk</option>` + prodOptions;
             document.getElementById('chart-filter-product').innerHTML = chartProdOptions;
-
-            updateQuickCountDisplay();
         }
 
         function renderMetricsAndDecision() {
-            const totalItems = products.length;
-            const critical = products.filter(p => p.stock === 0).length;
-            const low = products.filter(p => p.stock > 0 && p.stock <= p.alertMin).length;
-            const healthy = products.filter(p => p.stock > p.alertMin).length;
-            const totalVal = products.reduce((acc, p) => acc + (p.stock * p.unitPrice), 0);
+            let totalVal = 0;
+            let critical = 0;
+            let low = 0;
+            let healthy = 0;
 
-            document.getElementById('m-total-item').innerText = totalItems;
+            const buyList = [];
+            const watchList = [];
+            const safeList = [];
+
+            window.products.forEach(p => {
+                const val = p.stock * p.unitPrice;
+                totalVal += val;
+
+                const daysLeft = p.dailyUsage > 0 ? (p.stock / p.dailyUsage).toFixed(1) : '∞';
+
+                if (p.stock === 0) {
+                    critical++;
+                    buyList.push(`
+                        <div class="bg-red-950/40 border border-red-800/50 p-2 rounded-lg flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-red-200">${p.name}</div>
+                                <div class="text-[10px] text-red-400">Stok: 0 | Habis</div>
+                            </div>
+                            <span class="bg-red-600 text-white font-bold text-[10px] px-2 py-0.5 rounded">BELI SEGERA</span>
+                        </div>
+                    `);
+                } else if (p.stock <= p.alertMin) {
+                    low++;
+                    buyList.push(`
+                        <div class="bg-red-950/30 border border-red-900/40 p-2 rounded-lg flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-amber-200">${p.name}</div>
+                                <div class="text-[10px] text-amber-400">Stok: ${p.stock} (Min: ${p.alertMin}) | Baki ~${daysLeft} Hari</div>
+                            </div>
+                            <span class="bg-amber-600 text-white font-bold text-[10px] px-2 py-0.5 rounded">REORDER</span>
+                        </div>
+                    `);
+                } else if (daysLeft !== '∞' && daysLeft <= 3) {
+                    low++;
+                    watchList.push(`
+                        <div class="bg-amber-950/30 border border-amber-900/40 p-2 rounded-lg flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-amber-200">${p.name}</div>
+                                <div class="text-[10px] text-amber-400">Stok: ${p.stock} | Tahan ~${daysLeft} Hari Lagi</div>
+                            </div>
+                            <span class="bg-amber-700 text-white font-bold text-[10px] px-2 py-0.5 rounded">STOK SUSUT</span>
+                        </div>
+                    `);
+                } else {
+                    healthy++;
+                    safeList.push(`
+                        <div class="bg-slate-800/60 border border-slate-700 p-2 rounded-lg flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-slate-200">${p.name}</div>
+                                <div class="text-[10px] text-slate-400">Stok: ${p.stock} | Tahan ~${daysLeft} Hari</div>
+                            </div>
+                            <span class="text-emerald-400 font-bold text-[10px]"><i class="fa-solid fa-check"></i> STABIL</span>
+                        </div>
+                    `);
+                }
+            });
+
+            document.getElementById('m-total-item').innerText = window.products.length;
             document.getElementById('m-critical').innerText = critical;
             document.getElementById('m-low').innerText = low;
             document.getElementById('m-healthy').innerText = healthy;
             document.getElementById('m-value').innerText = 'RM ' + totalVal.toFixed(2);
 
-            let dcBuyToday = '';
-            let dcWatch = '';
-            let dcSafe = '';
-
-            products.forEach(p => {
-                const daysLeft = p.dailyUsage > 0 ? (p.stock / p.dailyUsage).toFixed(1) : '∞';
-
-                if (p.stock <= p.alertMin) {
-                    dcBuyToday += `
-                        <div class="p-2 bg-red-950/40 border border-red-500/40 rounded-lg flex justify-between items-center">
-                            <div>
-                                <div class="font-bold text-red-300">${p.name}</div>
-                                <div class="text-[10px] text-red-400">Baki: ${p.stock} | Tahan: ${daysLeft} Hari</div>
-                            </div>
-                            <span class="bg-red-600 text-white font-bold text-[10px] px-2 py-0.5 rounded">BELI</span>
-                        </div>
-                    `;
-                } else if (daysLeft !== '∞' && daysLeft <= 3) {
-                    dcWatch += `
-                        <div class="p-2 bg-amber-950/40 border border-amber-500/40 rounded-lg flex justify-between items-center">
-                            <div>
-                                <div class="font-bold text-amber-300">${p.name}</div>
-                                <div class="text-[10px] text-amber-400">Baki: ${p.stock} | Tahan: ${daysLeft} Hari</div>
-                            </div>
-                            <span class="bg-amber-600 text-white font-bold text-[10px] px-2 py-0.5 rounded">AMARAN</span>
-                        </div>
-                    `;
-                } else {
-                    dcSafe += `
-                        <div class="p-2 bg-slate-900 border border-slate-700 rounded-lg flex justify-between items-center">
-                            <div>
-                                <div class="font-bold text-slate-200">${p.name}</div>
-                                <div class="text-[10px] text-slate-400">Baki: ${p.stock} | Tahan: ${daysLeft} Hari</div>
-                            </div>
-                            <span class="text-emerald-400 font-bold text-[10px]"><i class="fa-solid fa-check"></i></span>
-                        </div>
-                    `;
-                }
-            });
-
-            document.getElementById('dc-buy-today').innerHTML = dcBuyToday || '<p class="text-slate-500 italic">Tiada pesanan kritikal</p>';
-            document.getElementById('dc-watch').innerHTML = dcWatch || '<p class="text-slate-500 italic">Stok berada dalam keadaan baik</p>';
-            document.getElementById('dc-safe').innerHTML = dcSafe || '<p class="text-slate-500 italic">Tiada maklumat</p>';
+            document.getElementById('dc-buy-today').innerHTML = buyList.length ? buyList.join('') : '<p class="text-slate-500 italic text-[11px]">Tiada produk perlu dibeli hari ini.</p>';
+            document.getElementById('dc-watch').innerHTML = watchList.length ? watchList.join('') : '<p class="text-slate-500 italic text-[11px]">Semua stok berkeadaan baik.</p>';
+            document.getElementById('dc-safe').innerHTML = safeList.length ? safeList.join('') : '<p class="text-slate-500 italic text-[11px]">Tiada rekod.</p>';
         }
 
         function renderProductsTable() {
-            const tbody = document.getElementById('table-products-body');
-            tbody.innerHTML = products.map(p => `
-                <tr class="hover:bg-slate-50">
-                    <td class="p-2 font-medium text-gray-800">${p.name}</td>
-                    <td class="p-2 text-gray-500">${p.category}</td>
-                    <td class="p-2 text-gray-600 font-semibold">${p.alertMin}</td>
-                    <td class="p-2 text-gray-600">RM ${p.unitPrice.toFixed(2)}</td>
+            const body = document.getElementById('table-products-body');
+            body.innerHTML = window.products.map(p => `
+                <tr class="hover:bg-gray-50">
+                    <td class="p-2 font-bold text-slate-800">${p.name}</td>
+                    <td class="p-2">${p.category}</td>
+                    <td class="p-2">${p.alertMin}</td>
+                    <td class="p-2">RM ${parseFloat(p.unitPrice).toFixed(2)}</td>
                     <td class="p-2 text-right space-x-1">
-                        <button onclick="editProduct(${p.id})" class="text-blue-600 hover:text-blue-800 font-medium text-xs"><i class="fa-solid fa-pen-to-square"></i></button>
-                        <button onclick="deleteProduct(${p.id})" class="text-red-500 hover:text-red-700 font-medium text-xs"><i class="fa-solid fa-trash"></i></button>
+                        <button onclick="editProduct(${p.id})" class="text-blue-600 hover:text-blue-800"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteProduct(${p.id})" class="text-red-600 hover:text-red-800"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>
             `).join('');
         }
 
         function renderInventoryTable() {
+            const body = document.getElementById('inventory-table-body');
             const search = document.getElementById('search-inv').value.toLowerCase();
             const catFilter = document.getElementById('filter-inventory-cat').value;
-            const tbody = document.getElementById('inventory-table-body');
 
-            const filtered = products.filter(p => {
-                const matchName = p.name.toLowerCase().includes(search);
+            const filtered = window.products.filter(p => {
+                const matchSearch = p.name.toLowerCase().includes(search);
                 const matchCat = catFilter === 'ALL' || p.category === catFilter;
-                return matchName && matchCat;
+                return matchSearch && matchCat;
             });
 
-            tbody.innerHTML = filtered.map(p => {
+            body.innerHTML = filtered.map(p => {
                 const daysLeft = p.dailyUsage > 0 ? (p.stock / p.dailyUsage).toFixed(1) : '∞';
-                let statusBadge = '<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">Cukup</span>';
-
-                if (p.stock === 0) {
-                    statusBadge = '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold">Habis</span>';
-                } else if (p.stock <= p.alertMin) {
-                    statusBadge = '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">Amaran</span>';
-                }
+                const totalVal = (p.stock * p.unitPrice).toFixed(2);
+                
+                let badge = '<span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold">Mencukupi</span>';
+                if (p.stock === 0) badge = '<span class="bg-red-100 text-red-800 text-[10px] px-2 py-0.5 rounded font-bold">Habis</span>';
+                else if (p.stock <= p.alertMin) badge = '<span class="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded font-bold">Rendah</span>';
 
                 return `
                     <tr class="hover:bg-gray-50">
-                        <td class="p-3 font-semibold text-gray-800">${p.name}</td>
-                        <td class="p-3 text-gray-500">${p.category}</td>
-                        <td class="p-3 font-black text-slate-800 text-sm">${p.stock}</td>
-                        <td class="p-3 text-gray-500">${p.alertMin}</td>
-                        <td class="p-3 font-semibold ${daysLeft <= 3 ? 'text-rose-600' : 'text-emerald-600'}">${daysLeft} Hari</td>
-                        <td class="p-3 text-gray-600">RM ${p.unitPrice.toFixed(2)}</td>
-                        <td class="p-3 font-bold text-slate-700">RM ${(p.stock * p.unitPrice).toFixed(2)}</td>
-                        <td class="p-3">${statusBadge}</td>
+                        <td class="p-3 font-bold text-slate-800">${p.name}</td>
+                        <td class="p-3">${p.category}</td>
+                        <td class="p-3 font-bold">${p.stock}</td>
+                        <td class="p-3">${p.alertMin}</td>
+                        <td class="p-3">~${daysLeft} Hari</td>
+                        <td class="p-3">RM ${parseFloat(p.unitPrice).toFixed(2)}</td>
+                        <td class="p-3 font-semibold text-slate-700">RM ${totalVal}</td>
+                        <td class="p-3">${badge}</td>
                     </tr>
                 `;
             }).join('');
         }
 
         function renderCountTable() {
-            const tbody = document.getElementById('count-table-body');
-            tbody.innerHTML = products.map(p => `
-                <tr class="hover:bg-slate-50">
-                    <td class="p-3 font-semibold text-slate-800">${p.name}</td>
-                    <td class="p-3 font-bold text-blue-600">${p.stock}</td>
+            const body = document.getElementById('count-table-body');
+            body.innerHTML = window.products.map(p => `
+                <tr class="hover:bg-gray-50">
+                    <td class="p-3 font-bold text-slate-800">${p.name}</td>
+                    <td class="p-3 font-semibold">${p.stock}</td>
                     <td class="p-3">
-                        <input type="number" id="audit-input-${p.id}" placeholder="${p.stock}" class="w-20 p-1 border rounded text-xs bg-white">
+                        <input type="number" id="audit-input-${p.id}" value="${p.stock}" onchange="auditAdjust(${p.id}, this.value)" class="w-20 p-1 border rounded text-xs">
                     </td>
-                    <td class="p-3">
-                        <button onclick="saveAuditRow(${p.id})" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold hover:bg-rose-700">Kemaskini</button>
+                    <td class="p-3 font-bold" id="audit-var-${p.id}">0</td>
+                    <td class="p-3" id="audit-status-${p.id}">
+                        <span class="text-emerald-600 font-bold"><i class="fa-solid fa-check"></i> Padan</span>
                     </td>
-                    <td class="p-3 text-gray-400 italic">Siap Audit</td>
                 </tr>
             `).join('');
         }
 
         function renderReportsTable() {
-            const tbody = document.getElementById('report-table-body');
-            tbody.innerHTML = transactions.slice().reverse().map(t => {
-                const prod = products.find(p => p.id === t.productId);
-                const isIn = t.type === 'in';
+            const body = document.getElementById('report-table-body');
+            body.innerHTML = window.transactions.slice().reverse().map(t => {
+                const p = window.products.find(x => x.id == t.productId);
+                const pName = p ? p.name : 'Item Dipadam';
+                const typeBadge = t.type === 'in' 
+                    ? '<span class="text-emerald-600 font-bold">+ MASUK</span>' 
+                    : '<span class="text-red-600 font-bold">- KELUAR</span>';
 
                 return `
                     <tr class="hover:bg-gray-50">
                         <td class="p-3 text-gray-500">${t.date}</td>
-                        <td class="p-3 font-bold ${isIn ? 'text-emerald-600' : 'text-rose-600'}">${isIn ? 'Masuk (+)' : 'Keluar (-)'}</td>
-                        <td class="p-3 font-semibold text-slate-800">${prod ? prod.name : 'Dipadam'}</td>
-                        <td class="p-3 font-bold">${t.qty}</td>
-                        <td class="p-3 text-gray-600">${t.payment || '-'}</td>
-                        <td class="p-3 text-gray-400">${t.note || '-'}</td>
+                        <td class="p-3">${typeBadge}</td>
+                        <td class="p-3 font-bold text-slate-800">${pName}</td>
+                        <td class="p-3 font-semibold">${t.qty}</td>
+                        <td class="p-3">${t.payment || 'N/A'}</td>
+                        <td class="p-3 text-gray-500">${t.note || '-'}</td>
                     </tr>
                 `;
             }).join('');
         }
 
-        function renderCharts() {
-            const ctxStok = document.getElementById('chartStokSemasa').getContext('2d');
-            const ctxPenggunaan = document.getElementById('chartPenggunaan').getContext('2d');
-
-            if (chartStokInstance) chartStokInstance.destroy();
-            if (chartPenggunaanInstance) chartPenggunaanInstance.destroy();
-
-            chartStokInstance = new Chart(ctxStok, {
-                type: 'bar',
-                data: {
-                    labels: products.map(p => p.name),
-                    datasets: [{
-                        label: 'Stok Semasa',
-                        data: products.map(p => p.stock),
-                        backgroundColor: '#f59e0b'
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-
-            const startDate = document.getElementById('chart-filter-start').value;
-            const endDate = document.getElementById('chart-filter-end').value;
-            const filterProd = document.getElementById('chart-filter-product').value;
-
-            let filteredTx = transactions.filter(t => t.type === 'out');
-
-            if (startDate) filteredTx = filteredTx.filter(t => t.date >= startDate);
-            if (endDate) filteredTx = filteredTx.filter(t => t.date <= endDate);
-            if (filterProd && filterProd !== 'ALL') filteredTx = filteredTx.filter(t => t.productId == filterProd);
-
-            const usageMap = {};
-            filteredTx.forEach(t => {
-                const prod = products.find(p => p.id === t.productId);
-                const name = prod ? prod.name : 'Unknown';
-                usageMap[name] = (usageMap[name] || 0) + t.qty;
-            });
-
-            chartPenggunaanInstance = new Chart(ctxPenggunaan, {
-                type: 'line',
-                data: {
-                    labels: Object.keys(usageMap),
-                    datasets: [{
-                        label: 'Kuantiti Keluar',
-                        data: Object.values(usageMap),
-                        borderColor: '#ef4444',
-                        backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                        fill: true
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
-
         function addCategory() {
-            const name = document.getElementById('cat-name').value.trim();
-            if (name && !categories.includes(name)) {
-                categories.push(name);
+            const val = document.getElementById('cat-name').value.trim();
+            if (val && !window.categories.includes(val)) {
+                window.categories.push(val);
                 document.getElementById('cat-name').value = '';
                 saveData();
+                renderAll();
             }
         }
 
         function handleProductSubmit(e) {
             e.preventDefault();
-            const editId = document.getElementById('prod-id-edit').value;
+            const id = document.getElementById('prod-id-edit').value;
             const name = document.getElementById('prod-name').value;
             const category = document.getElementById('prod-cat').value;
-            const alertMin = parseInt(document.getElementById('prod-min').value);
+            const alertMin = parseFloat(document.getElementById('prod-min').value);
             const unitPrice = parseFloat(document.getElementById('prod-price').value);
             const dailyUsage = parseFloat(document.getElementById('prod-usage').value);
 
-            if (editId) {
-                const prod = products.find(p => p.id == editId);
-                if (prod) {
-                    prod.name = name;
-                    prod.category = category;
-                    prod.alertMin = alertMin;
-                    prod.unitPrice = unitPrice;
-                    prod.dailyUsage = dailyUsage;
+            if (id) {
+                const p = window.products.find(x => x.id == id);
+                if (p) {
+                    p.name = name;
+                    p.category = category;
+                    p.alertMin = alertMin;
+                    p.unitPrice = unitPrice;
+                    p.dailyUsage = dailyUsage;
                 }
             } else {
-                const newId = products.length ? Math.max(...products.map(p => p.id)) + 1 : 1;
-                products.push({ id: newId, name, category, stock: 0, alertMin, unitPrice, dailyUsage });
+                const newProd = {
+                    id: Date.now(),
+                    name,
+                    category,
+                    stock: 0,
+                    alertMin,
+                    unitPrice,
+                    dailyUsage
+                };
+                window.products.push(newProd);
             }
 
             resetProductForm();
             saveData();
+            renderAll();
         }
 
         function editProduct(id) {
-            const prod = products.find(p => p.id === id);
-            if (!prod) return;
-
-            document.getElementById('prod-id-edit').value = prod.id;
-            document.getElementById('prod-name').value = prod.name;
-            document.getElementById('prod-cat').value = prod.category;
-            document.getElementById('prod-min').value = prod.alertMin;
-            document.getElementById('prod-price').value = prod.unitPrice;
-            document.getElementById('prod-usage').value = prod.dailyUsage;
-
+            const p = window.products.find(x => x.id == id);
+            if (!p) return;
+            document.getElementById('prod-id-edit').value = p.id;
+            document.getElementById('prod-name').value = p.name;
+            document.getElementById('prod-cat').value = p.category;
+            document.getElementById('prod-min').value = p.alertMin;
+            document.getElementById('prod-price').value = p.unitPrice;
+            document.getElementById('prod-usage').value = p.dailyUsage;
+            
             document.getElementById('prod-form-title').innerText = 'Edit Produk';
             document.getElementById('prod-submit-btn').innerText = 'Kemaskini Produk';
             document.getElementById('prod-cancel-edit').classList.remove('hidden');
@@ -793,9 +789,10 @@
         }
 
         function deleteProduct(id) {
-            if (confirm('Adakah anda pasti mahu memadam produk ini?')) {
-                products = products.filter(p => p.id !== id);
+            if (confirm('Adakah anda pasti untuk memadam produk ini?')) {
+                window.products = window.products.filter(p => p.id != id);
                 saveData();
+                renderAll();
             }
         }
 
@@ -804,125 +801,207 @@
             const date = document.getElementById('tx-date').value;
             const type = document.getElementById('tx-type').value;
             const productId = parseInt(document.getElementById('tx-product').value);
-            const qty = parseInt(document.getElementById('tx-qty').value);
+            const qty = parseFloat(document.getElementById('tx-qty').value);
             const payment = document.getElementById('tx-payment').value;
             const note = document.getElementById('tx-note').value;
 
-            const prod = products.find(p => p.id === productId);
-            if (!prod) return;
+            const p = window.products.find(x => x.id === productId);
+            if (!p) return;
 
-            if (type === 'out' && prod.stock < qty) {
-                alert('Stok tidak mencukupi!');
-                return;
+            if (type === 'in') {
+                p.stock += qty;
+            } else {
+                p.stock = Math.max(0, p.stock - qty);
             }
 
-            if (type === 'in') prod.stock += qty;
-            if (type === 'out') prod.stock -= qty;
+            window.transactions.push({
+                id: Date.now(),
+                date,
+                type,
+                productId,
+                qty,
+                payment,
+                note
+            });
 
-            transactions.push({ id: Date.now(), date, type, productId, qty, payment, note });
             document.getElementById('form-transaksi').reset();
+            document.getElementById('tx-date').valueAsDate = new Date();
             saveData();
+            renderAll();
         }
 
         function processQuickStok() {
             const productId = parseInt(document.getElementById('quick-product').value);
             const type = document.getElementById('quick-type').value;
-            const qty = parseInt(document.getElementById('quick-qty').value);
+            const qty = parseFloat(document.getElementById('quick-qty').value);
 
             if (!qty || qty <= 0) return;
 
-            const prod = products.find(p => p.id === productId);
-            if (!prod) return;
+            const p = window.products.find(x => x.id === productId);
+            if (!p) return;
 
-            if (type === 'out' && prod.stock < qty) {
-                alert('Stok tidak mencukupi!');
-                return;
+            if (type === 'in') {
+                p.stock += qty;
+            } else {
+                p.stock = Math.max(0, p.stock - qty);
             }
 
-            if (type === 'in') prod.stock += qty;
-            if (type === 'out') prod.stock -= qty;
+            window.transactions.push({
+                id: Date.now(),
+                date: new Date().toISOString().split('T')[0],
+                type,
+                productId,
+                qty,
+                payment: 'N/A',
+                note: 'Quick Adjust Dashboard'
+            });
 
-            const today = new Date().toISOString().split('T')[0];
-            transactions.push({ id: Date.now(), date: today, type, productId, qty, payment: 'N/A', note: 'Quick Adjust' });
-            
             document.getElementById('quick-qty').value = '';
             saveData();
+            renderAll();
         }
 
         function updateQuickCountDisplay() {
             const productId = parseInt(document.getElementById('quick-count-product').value);
-            const qtyInput = document.getElementById('quick-count-qty').value;
+            const inputQty = parseFloat(document.getElementById('quick-count-qty').value);
             const statusDiv = document.getElementById('quick-count-status');
 
-            const prod = products.find(p => p.id === productId);
-            if (!prod || qtyInput === '') {
+            const p = window.products.find(x => x.id === productId);
+            if (!p || isNaN(inputQty)) {
                 statusDiv.innerText = 'Selisih: -';
                 return;
             }
 
-            const diff = parseInt(qtyInput) - prod.stock;
-            statusDiv.innerText = `Selisih: ${diff > 0 ? '+' : ''}${diff}`;
+            const diff = inputQty - p.stock;
+            if (diff === 0) {
+                statusDiv.innerText = 'Selisih: 0 (OK)';
+                statusDiv.className = 'flex items-center justify-center text-xs font-bold px-2 bg-emerald-100 text-emerald-800 border rounded-lg';
+            } else {
+                statusDiv.innerText = `Selisih: ${diff > 0 ? '+' : ''}${diff}`;
+                statusDiv.className = 'flex items-center justify-center text-xs font-bold px-2 bg-red-100 text-red-800 border rounded-lg';
+            }
         }
 
         function processQuickCount() {
             const productId = parseInt(document.getElementById('quick-count-product').value);
-            const physicalQty = parseInt(document.getElementById('quick-count-qty').value);
+            const inputQty = parseFloat(document.getElementById('quick-count-qty').value);
 
-            if (isNaN(physicalQty)) return;
+            if (isNaN(inputQty) || inputQty < 0) return;
 
-            const prod = products.find(p => p.id === productId);
-            if (!prod) return;
+            const p = window.products.find(x => x.id === productId);
+            if (!p) return;
 
-            const diff = physicalQty - prod.stock;
-            prod.stock = physicalQty;
+            const diff = inputQty - p.stock;
+            p.stock = inputQty;
 
-            const today = new Date().toISOString().split('T')[0];
-            if (diff !== 0) {
-                transactions.push({
-                    id: Date.now(),
-                    date: today,
-                    type: diff > 0 ? 'in' : 'out',
-                    productId,
-                    qty: Math.abs(diff),
-                    payment: 'N/A',
-                    note: 'Audit Fizikal (Quick Count)'
-                });
-            }
+            window.transactions.push({
+                id: Date.now(),
+                date: new Date().toISOString().split('T')[0],
+                type: diff >= 0 ? 'in' : 'out',
+                productId,
+                qty: Math.abs(diff),
+                payment: 'N/A',
+                note: `Audit Fizikal (Variance: ${diff})`
+            });
 
             document.getElementById('quick-count-qty').value = '';
+            document.getElementById('quick-count-status').innerText = 'Selisih: -';
             saveData();
+            renderAll();
         }
 
-        function saveAuditRow(id) {
-            const input = document.getElementById(`audit-input-${id}`);
-            const physicalQty = parseInt(input.value);
+        function auditAdjust(id, val) {
+            const p = window.products.find(x => x.id === id);
+            if (!p) return;
+            const newQty = parseFloat(val);
+            if (isNaN(newQty)) return;
 
-            if (isNaN(physicalQty)) return;
+            const diff = newQty - p.stock;
+            const varEl = document.getElementById(`audit-var-${id}`);
+            const statusEl = document.getElementById(`audit-status-${id}`);
 
-            const prod = products.find(p => p.id === id);
-            if (!prod) return;
-
-            const diff = physicalQty - prod.stock;
-            prod.stock = physicalQty;
-
-            const today = new Date().toISOString().split('T')[0];
-            if (diff !== 0) {
-                transactions.push({
-                    id: Date.now(),
-                    date: today,
-                    type: diff > 0 ? 'in' : 'out',
-                    productId: id,
-                    qty: Math.abs(diff),
-                    payment: 'N/A',
-                    note: 'Audit Stock Count'
-                });
+            if (varEl && statusEl) {
+                varEl.innerText = diff;
+                if (diff === 0) {
+                    statusEl.innerHTML = '<span class="text-emerald-600 font-bold"><i class="fa-solid fa-check"></i> Padan</span>';
+                } else {
+                    statusEl.innerHTML = `<span class="text-red-600 font-bold"><i class="fa-solid fa-triangle-exclamation"></i> Selisih (${diff})</span>`;
+                }
             }
-
-            saveData();
         }
 
-        document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
-        document.getElementById('quick-count-qty').addEventListener('input', updateQuickCountDisplay);
+        function renderCharts() {
+            // Render Chart Stok Semasa
+            const ctxStok = document.getElementById('chartStokSemasa').getContext('2d');
+            const stokLabels = window.products.map(p => p.name);
+            const stokData = window.products.map(p => p.stock);
+
+            if (chartStokInstance) chartStokInstance.destroy();
+            chartStokInstance = new Chart(ctxStok, {
+                type: 'bar',
+                data: {
+                    labels: stokLabels,
+                    datasets: [{
+                        label: 'Kuantiti Stok Semasa',
+                        data: stokData,
+                        backgroundColor: '#f59e0b',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // Render Chart Penggunaan
+            const ctxPenggunaan = document.getElementById('chartPenggunaan').getContext('2d');
+            const startDate = document.getElementById('chart-filter-start').value;
+            const endDate = document.getElementById('chart-filter-end').value;
+            const filterProduct = document.getElementById('chart-filter-product').value;
+
+            let outTx = window.transactions.filter(t => t.type === 'out');
+
+            if (startDate) outTx = outTx.filter(t => t.date >= startDate);
+            if (endDate) outTx = outTx.filter(t => t.date <= endDate);
+            if (filterProduct && filterProduct !== 'ALL') outTx = outTx.filter(t => t.productId == filterProduct);
+
+            const aggregated = {};
+            outTx.forEach(t => {
+                const p = window.products.find(x => x.id == t.productId);
+                const name = p ? p.name : 'Lain-lain';
+                aggregated[name] = (aggregated[name] || 0) + parseFloat(t.qty);
+            });
+
+            if (chartPenggunaanInstance) chartPenggunaanInstance.destroy();
+            chartPenggunaanInstance = new Chart(ctxPenggunaan, {
+                type: 'line',
+                data: {
+                    labels: Object.keys(aggregated).length ? Object.keys(aggregated) : ['Tiada Data'],
+                    datasets: [{
+                        label: 'Jumlah Stok Keluar',
+                        data: Object.values(aggregated).length ? Object.values(aggregated) : [0],
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+
+        window.onload = function() {
+            document.getElementById('tx-date').valueAsDate = new Date();
+            renderAll();
+        };
     </script>
 </body>
 </html>
