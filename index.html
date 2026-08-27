@@ -11,21 +11,9 @@
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
-    <body {
-  max-width: 600px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 15px;
-  box-sizing: border-box;
-}
-
-input, button, select, table {
-  width: 100%;
-  box-sizing: border-box;
-}
-        </head>
+</head>
 <body class="bg-gray-100 font-sans flex h-screen overflow-hidden text-gray-800">
-    
+
     <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0 border-r border-slate-800">
         <div class="p-5 border-b border-slate-800 flex items-center gap-3">
             <div class="bg-amber-500 text-slate-900 p-2 rounded-lg font-black"><i class="fa-solid fa-bread-slice"></i></div>
@@ -455,363 +443,135 @@ input, button, select, table {
     </main>
 
     <script>
-      { id: 2, name: 'Minyak Sapi (Tin)', category: 'Bahan Mentah', stock: 3, alertMin: 5, unitPrice: 38.00, dailyUsage: 1.0 },
-            { id: 3, name: 'Telur Ayam (Papan)', category: 'Bahan Mentah', stock: 15, alertMin: 5, unitPrice: 14.00, dailyUsage: 3.0 },
-            { id: 4, name: 'Kertas Pembungkus (Pak)', category: 'Pembungkusan', stock: 2, alertMin: 4, unitPrice: 12.50, dailyUsage: 1.5 }
+        let categories = JSON.parse(localStorage.getItem('rtc_categories_v4')) || [
+            'Bahan Mentah', 'Inti & Bumbu', 'Pembungkusan', 'Barangan Minuman'
         ];
 
-        let transactions = JSON.parse(localStorage.getItem('rtc_transactions_v4')) || [];
+        let products = JSON.parse(localStorage.getItem('rtc_products_v4')) || [
+            { id: 1, name: 'Tepung Gandum (Kg)', category: 'Bahan Mentah', stock: 50, alertMin: 10, unitPrice: 3.50, dailyUsage: 5.0 },
+            { id: 2, name: 'Minyak Sapi (Tin)', category: 'Bahan Mentah', stock: 3, alertMin: 5, unitPrice: 28.00, dailyUsage: 1.2 },
+            { id: 3, name: 'Telur Ayam (Papan)', category: 'Bahan Mentah', stock: 0, alertMin: 2, unitPrice: 14.00, dailyUsage: 2.0 },
+            { id: 4, name: 'Beras Basmathi (Kg)', category: 'Bahan Mentah', stock: 40, alertMin: 10, unitPrice: 9.50, dailyUsage: 4.0 },
+            { id: 5, name: 'Plastik Bungkus 6x9', category: 'Pembungkusan', stock: 15, alertMin: 5, unitPrice: 4.50, dailyUsage: 1.0 }
+        ];
+
+        let transactions = JSON.parse(localStorage.getItem('rtc_transactions_v4')) || [
+            { date: '2026-08-20', type: 'in', productName: 'Tepung Gandum (Kg)', qty: 50, payment: 'Online Transfer', note: 'Stok Awal' },
+            { date: '2026-08-21', type: 'out', productName: 'Tepung Gandum (Kg)', qty: 5, payment: 'N/A', note: 'Penggunaan Dapur' },
+            { date: '2026-08-22', type: 'out', productName: 'Minyak Sapi (Tin)', qty: 2, payment: 'N/A', note: 'Penggunaan Dapur' }
+        ];
+
         let suppliers = JSON.parse(localStorage.getItem('rtc_suppliers_v4')) || [
-            { id: 1, name: 'Pembekal Tepung Sdn Bhd', contact: '012-3456789', items: 'Tepung Gandum', delivery: '1 Hari', rating: '98%' },
-            { id: 2, name: 'Pemborong Runcit Ah Seng', contact: '016-9876543', items: 'Minyak Sapi, Telur', delivery: 'Same Day', rating: '95%' }
+            { id: 1, name: 'Pemborong Utama Terengganu Sdn Bhd', contact: '09-622XXXX / 012-9876543', items: 'Tepung Gandum, Minyak Sapi, Beras, Rempah', delivery: '1 Hari', rating: '98%' },
+            { id: 2, name: 'Pembekal Pasar Basah RCC', contact: '013-1122334', items: 'Ayam Mentah, Telur, Daging, Sayur-sayuran', delivery: 'Setiap Pagi', rating: '95%' }
         ];
-        let purchaseOrders = JSON.parse(localStorage.getItem('rtc_pos_v4')) || [];
-        let stockCounts = JSON.parse(localStorage.getItem('rtc_counts_v4')) || {};
 
-        let chartStokSemasaInstance = null;
+        let purchaseOrders = JSON.parse(localStorage.getItem('rtc_po_v4')) || [
+            { id: 'PO-9001', supplier: 'Pemborong Utama Terengganu Sdn Bhd', item: 'Tepung Gandum (Kg)', qty: 50, status: 'Pending' }
+        ];
+
+        let chartStokInstance = null;
         let chartPenggunaanInstance = null;
 
-        document.addEventListener('DOMContentLoaded', () => {
-            initApp();
-            
-            // Pendaftaran Event Listener dengan semakan kewujudan elemen
-            const quickQtyEl = document.getElementById('quick-count-qty');
-            if (quickQtyEl) {
-                quickQtyEl.addEventListener('input', updateQuickCountDisplay);
+        function switchTab(tabId) {
+            const tabs = ['dashboard', 'pengurusan', 'inventory', 'purchasing', 'supplier', 'count', 'reports'];
+            const titles = {
+                'dashboard': 'DASHBOARD UTAMA',
+                'pengurusan': 'PENGURUSAN STOK & REKOD',
+                'inventory': 'INVENTORI PENUH RESTORAN',
+                'purchasing': 'PURCHASING & PURCHASE ORDER (PO)',
+                'supplier': 'PENGURUSAN PEMBEKAL',
+                'count': 'STOCK COUNT & SEMAKAN SELISIH',
+                'reports': 'LAPORAN TRANSAKSI & PENGGUNAAN'
+            };
+
+            tabs.forEach(t => {
+                const sec = document.getElementById(`sec-${t}`);
+                const nav = document.getElementById(`nav-${t}`);
+                if (sec) sec.classList.add('hidden');
+                if (nav) {
+                    nav.classList.remove('bg-slate-800', 'text-white');
+                    nav.classList.add('hover:bg-slate-800', 'hover:text-white');
+                }
+            });
+
+            document.getElementById(`sec-${tabId}`).classList.remove('hidden');
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if (activeNav) {
+                activeNav.classList.add('bg-slate-800', 'text-white');
             }
-        });
+            document.getElementById('page-title').innerText = titles[tabId];
+
+            if (tabId === 'dashboard') renderCharts();
+            if (tabId === 'inventory') renderInventoryTable();
+            if (tabId === 'count') renderCountTable();
+            if (tabId === 'supplier') renderSupplierCards();
+        }
 
         function saveData() {
             localStorage.setItem('rtc_categories_v4', JSON.stringify(categories));
             localStorage.setItem('rtc_products_v4', JSON.stringify(products));
             localStorage.setItem('rtc_transactions_v4', JSON.stringify(transactions));
             localStorage.setItem('rtc_suppliers_v4', JSON.stringify(suppliers));
-            localStorage.setItem('rtc_pos_v4', JSON.stringify(purchaseOrders));
-            localStorage.setItem('rtc_counts_v4', JSON.stringify(stockCounts));
+            localStorage.setItem('rtc_po_v4', JSON.stringify(purchaseOrders));
+            updateAllViews();
         }
 
-        function initApp() {
-            const txDateEl = document.getElementById('tx-date');
-            if (txDateEl) {
-                txDateEl.valueAsDate = new Date();
-            }
-            
+        function updateAllViews() {
+            renderDropdowns();
             renderCategories();
-            renderProductDropdowns();
-            renderProductsTable();
-            renderInventoryTable();
-            renderDecisionCenter();
+            renderProductTable();
             renderMetrics();
-            renderSuppliers();
+            renderDecisionCenter();
+            renderReportTable();
             renderPOList();
-            renderStockCountTable();
-            renderReports();
-            renderCharts();
+            renderSupplierCards();
         }
 
-        function switchTab(tabId) {
-            document.querySelectorAll('main > div > section').forEach(sec => sec.classList.add('hidden'));
-            const targetSec = document.getElementById(`sec-${tabId}`);
-            if (targetSec) {
-                targetSec.classList.remove('hidden');
-            }
-
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.classList.remove('bg-slate-800', 'text-white');
-            });
-            const targetNav = document.getElementById(`nav-${tabId}`);
-            if (targetNav) {
-                targetNav.classList.add('bg-slate-800', 'text-white');
-            }
-
-            const titles = {
-                dashboard: 'DASHBOARD UTAMA',
-                pengurusan: 'PENGURUSAN & REKOD STOK',
-                inventory: 'INVENTORI PENUH RESTORAN',
-                purchasing: 'PURCHASING (PURCHASE ORDER)',
-                supplier: 'PENGURUSAN PEMBEKAL',
-                count: 'STOCK COUNT & AUDIT FIZIKAL',
-                reports: 'LAPORAN TRANSAKSI STOK'
+        function renderDropdowns() {
+            const createGroupedOptions = (includeAll = false) => {
+                let html = includeAll ? '<option value="ALL">Semua Produk</option>' : '';
+                categories.forEach(cat => {
+                    const prodsInCat = products.filter(p => p.category === cat);
+                    if (prodsInCat.length > 0) {
+                        html += `<optgroup label="📂 ${cat}">`;
+                        prodsInCat.forEach(p => {
+                            html += `<option value="${p.id}">${p.name}</option>`;
+                        });
+                        html += `</optgroup>`;
+                    }
+                });
+                return html;
             };
-            const pageTitleEl = document.getElementById('page-title');
-            if (pageTitleEl) {
-                pageTitleEl.textContent = titles[tabId] || 'SISTEM STOK';
-            }
-        }
 
-        // --- KATEGORI ---
-        function addCategory() {
-            const input = document.getElementById('cat-name');
-            if (!input) return;
-            const catName = input.value.trim();
-            if (catName && !categories.includes(catName)) {
-                categories.push(catName);
-                input.value = '';
-                saveData();
-                renderCategories();
-                renderProductDropdowns();
-            }
-        }
-
-        function renderCategories() {
-            const container = document.getElementById('cat-list');
-            if (!container) return;
-            container.innerHTML = categories.map(cat => 
-                `<span class="bg-blue-50 text-blue-700 text-xs px-2.5 py-1 rounded-full border border-blue-200 font-medium">${cat}</span>`
-            ).join('');
-        }
-
-        // --- PRODUK ---
-        function renderProductDropdowns() {
-            const catSelects = [document.getElementById('prod-cat'), document.getElementById('filter-inventory-cat')];
-            catSelects.forEach(sel => {
-                if (!sel) return;
-                const currentVal = sel.value;
-                sel.innerHTML = sel.id === 'filter-inventory-cat' ? '<option value="">Semua Kategori</option>' : '';
-                categories.forEach(c => {
-                    sel.innerHTML += `<option value="${c}">${c}</option>`;
-                });
-                if (currentVal) sel.value = currentVal;
-            });
-
-            const prodSelects = [
-                document.getElementById('quick-product'),
-                document.getElementById('quick-count-product'),
-                document.getElementById('tx-product'),
-                document.getElementById('po-item'),
-                document.getElementById('chart-filter-product')
-            ];
-
-            prodSelects.forEach(sel => {
-                if (!sel) return;
-                const currentVal = sel.value;
-                sel.innerHTML = sel.id === 'chart-filter-product' ? '<option value="">Semua Produk</option>' : '';
-                products.forEach(p => {
-                    sel.innerHTML += `<option value="${p.id}">${p.name}</option>`;
-                });
-                if (currentVal) sel.value = currentVal;
-            });
+            const groupedHTML = createGroupedOptions();
+            document.getElementById('quick-product').innerHTML = groupedHTML;
+            document.getElementById('quick-count-product').innerHTML = groupedHTML;
+            document.getElementById('tx-product').innerHTML = groupedHTML;
+            
+            document.getElementById('chart-filter-product').innerHTML = createGroupedOptions(true);
+            
+            document.getElementById('prod-cat').innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+            document.getElementById('filter-inventory-cat').innerHTML = `<option value="ALL">Semua Kategori</option>` + categories.map(c => `<option value="${c}">${c}</option>`).join('');
+            
+            document.getElementById('po-supplier').innerHTML = suppliers.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+            document.getElementById('po-item').innerHTML = products.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
 
             updateQuickCountDisplay();
         }
 
-        function handleProductSubmit(e) {
-            e.preventDefault();
-            const editId = document.getElementById('prod-id-edit').value;
-            const name = document.getElementById('prod-name').value.trim();
-            const category = document.getElementById('prod-cat').value;
-            const alertMin = parseFloat(document.getElementById('prod-min').value) || 0;
-            const unitPrice = parseFloat(document.getElementById('prod-price').value) || 0;
-            const dailyUsage = parseFloat(document.getElementById('prod-usage').value) || 0;
-
-            if (editId) {
-                const prod = products.find(p => p.id == editId);
-                if (prod) {
-                    prod.name = name;
-                    prod.category = category;
-                    prod.alertMin = alertMin;
-                    prod.unitPrice = unitPrice;
-                    prod.dailyUsage = dailyUsage;
-                }
-            } else {
-                const newProd = {
-                    id: Date.now(),
-                    name,
-                    category,
-                    stock: 0,
-                    alertMin,
-                    unitPrice,
-                    dailyUsage
-                };
-                products.push(newProd);
-            }
-
-            saveData();
-            resetProductForm();
-            refreshAllViews();
-        }
-
-        function editProduct(id) {
-            const prod = products.find(p => p.id == id);
-            if (!prod) return;
-            document.getElementById('prod-id-edit').value = prod.id;
-            document.getElementById('prod-name').value = prod.name;
-            document.getElementById('prod-cat').value = prod.category;
-            document.getElementById('prod-min').value = prod.alertMin;
-            document.getElementById('prod-price').value = prod.unitPrice;
-            document.getElementById('prod-usage').value = prod.dailyUsage;
-
-            document.getElementById('prod-form-title').textContent = 'Edit Produk';
-            document.getElementById('prod-submit-btn').textContent = 'Kemaskini Produk';
-            document.getElementById('prod-cancel-edit').classList.remove('hidden');
-        }
-
-        function resetProductForm() {
-            const formProd = document.getElementById('form-product');
-            if (formProd) formProd.reset();
-            
-            document.getElementById('prod-id-edit').value = '';
-            document.getElementById('prod-form-title').textContent = 'Tambah Produk Baru';
-            document.getElementById('prod-submit-btn').textContent = 'Simpan Produk';
-            document.getElementById('prod-cancel-edit').classList.add('hidden');
-        }
-
-        function deleteProduct(id) {
-            if (confirm('Adakah anda pasti mahu memadam produk ini?')) {
-                products = products.filter(p => p.id != id);
-                saveData();
-                refreshAllViews();
-            }
-        }
-
-        function renderProductsTable() {
-            const tbody = document.getElementById('table-products-body');
-            if (!tbody) return;
-            tbody.innerHTML = products.map(p => `
-                <tr class="hover:bg-gray-50">
-                    <td class="p-2 font-medium text-slate-800">${p.name}</td>
-                    <td class="p-2 text-gray-500">${p.category}</td>
-                    <td class="p-2">${p.alertMin}</td>
-                    <td class="p-2">RM ${p.unitPrice.toFixed(2)}</td>
-                    <td class="p-2 text-right space-x-1">
-                        <button onclick="editProduct(${p.id})" class="text-blue-600 hover:text-blue-800 font-bold"><i class="fa-solid fa-pen"></i></button>
-                        <button onclick="deleteProduct(${p.id})" class="text-rose-600 hover:text-rose-800 font-bold ml-2"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        // --- TRANSAKSI STOK ---
-        function handleTransaction(e) {
-            e.preventDefault();
-            const date = document.getElementById('tx-date').value;
-            const type = document.getElementById('tx-type').value;
-            const productId = document.getElementById('tx-product').value;
-            const qty = parseFloat(document.getElementById('tx-qty').value) || 0;
-            const payment = document.getElementById('tx-payment').value;
-            const note = document.getElementById('tx-note').value.trim();
-
-            recordTransaction(date, type, productId, qty, payment, note);
-            document.getElementById('form-transaksi').reset();
-            document.getElementById('tx-date').valueAsDate = new Date();
-        }
-
-        function recordTransaction(date, type, productId, qty, payment, note) {
-            const prod = products.find(p => p.id == productId);
-            if (!prod) return;
-
-            if (type === 'out' && prod.stock < qty) {
-                alert('Stok tidak mencukupi untuk transaksi keluar!');
-                return;
-            }
-
-            if (type === 'in') prod.stock += qty;
-            else prod.stock -= qty;
-
-            transactions.unshift({
-                id: Date.now(),
-                date,
-                type,
-                productId: prod.id,
-                productName: prod.name,
-                qty,
-                payment,
-                note
-            });
-
-            saveData();
-            refreshAllViews();
-        }
-
-        // --- PINTAS CEPAT (QUICK ACTIONS) ---
-        function processQuickStok() {
-            const productId = document.getElementById('quick-product').value;
-            const type = document.getElementById('quick-type').value;
-            const qty = parseFloat(document.getElementById('quick-qty').value);
-
-            if (!productId || isNaN(qty) || qty <= 0) {
-                alert('Sila pilih produk dan kuantiti yang sah.');
-                return;
-            }
-
-            const today = new Date().toISOString().split('T')[0];
-            recordTransaction(today, type, productId, qty, 'N/A', 'Quick Adjust Dashboard');
-            document.getElementById('quick-qty').value = '';
-        }
-
-        function updateQuickCountDisplay() {
-            const prodEl = document.getElementById('quick-count-product');
-            const statusDiv = document.getElementById('quick-count-status');
-            const qtyEl = document.getElementById('quick-count-qty');
-
-            if (!prodEl || !statusDiv || !qtyEl) return;
-
-            const productId = prodEl.value;
-            const inputQty = parseFloat(qtyEl.value);
-
-            const prod = products.find(p => p.id == productId);
-            if (!prod || isNaN(inputQty)) {
-                statusDiv.textContent = 'Selisih: -';
-                statusDiv.className = 'flex items-center justify-center text-xs font-bold px-2 bg-white border rounded-lg';
-                return;
-            }
-
-            const diff = inputQty - prod.stock;
-            if (diff === 0) {
-                statusDiv.textContent = 'Selisih: 0 (Tepat)';
-                statusDiv.className = 'flex items-center justify-center text-xs font-bold px-2 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg';
-            } else if (diff > 0) {
-                statusDiv.textContent = `Selisih: +${diff}`;
-                statusDiv.className = 'flex items-center justify-center text-xs font-bold px-2 bg-blue-100 text-blue-800 border border-blue-300 rounded-lg';
-            } else {
-                statusDiv.textContent = `Selisih: ${diff}`;
-                statusDiv.className = 'flex items-center justify-center text-xs font-bold px-2 bg-rose-100 text-rose-800 border border-rose-300 rounded-lg';
-            }
-        }
-
-        function processQuickCount() {
-            const productId = document.getElementById('quick-count-product').value;
-            const physicalQty = parseFloat(document.getElementById('quick-count-qty').value);
-
-            const prod = products.find(p => p.id == productId);
-            if (!prod || isNaN(physicalQty)) {
-                alert('Sila masukkan kiraan fizikal yang sah.');
-                return;
-            }
-
-            const diff = physicalQty - prod.stock;
-            stockCounts[prod.id] = { physical: physicalQty, diff, date: new Date().toLocaleDateString('ms-MY') };
-            
-            if (diff !== 0) {
-                const type = diff > 0 ? 'in' : 'out';
-                const today = new Date().toISOString().split('T')[0];
-                recordTransaction(today, type, prod.id, Math.abs(diff), 'N/A', 'Pelarasan Stock Count Fizikal');
-            }
-
-            document.getElementById('quick-count-qty').value = '';
-            saveData();
-            refreshAllViews();
-        }
-
-        // --- INVENTORI & METRIK ---
         function renderMetrics() {
-            const totalItems = products.length;
-            const critical = products.filter(p => p.stock === 0).length;
-            const low = products.filter(p => p.stock > 0 && p.stock <= p.alertMin).length;
-            const healthy = products.filter(p => p.stock > p.alertMin).length;
-            const totalValue = products.reduce((acc, p) => acc + (p.stock * p.unitPrice), 0);
+            let total = products.length;
+            let critical = products.filter(p => p.stock <= 0).length;
+            let low = products.filter(p => p.stock > 0 && p.stock <= p.alertMin).length;
+            let healthy = products.filter(p => p.stock > p.alertMin).length;
+            let val = products.reduce((acc, p) => acc + (p.stock * p.unitPrice), 0);
 
-            const totalItemEl = document.getElementById('m-total-item');
-            const criticalEl = document.getElementById('m-critical');
-            const lowEl = document.getElementById('m-low');
-            const healthyEl = document.getElementById('m-healthy');
-            const valueEl = document.getElementById('m-value');
-
-            if (totalItemEl) totalItemEl.textContent = totalItems;
-            if (criticalEl) criticalEl.textContent = critical;
-            if (lowEl) lowEl.textContent = low;
-            if (healthyEl) healthyEl.textContent = healthy;
-            if (valueEl) valueEl.textContent = `RM ${totalValue.toFixed(2)}`;
+            document.getElementById('m-total-item').innerText = total;
+            document.getElementById('m-critical').innerText = critical;
+            document.getElementById('m-low').innerText = low;
+            document.getElementById('m-healthy').innerText = healthy;
+            document.getElementById('m-value').innerText = `RM ${val.toFixed(2)}`;
         }
 
         function renderDecisionCenter() {
@@ -819,122 +579,303 @@ input, button, select, table {
             const watch = document.getElementById('dc-watch');
             const safe = document.getElementById('dc-safe');
 
-            if (!buyToday || !watch || !safe) return;
-
-            buyToday.innerHTML = '';
-            watch.innerHTML = '';
-            safe.innerHTML = '';
+            buyToday.innerHTML = ''; watch.innerHTML = ''; safe.innerHTML = '';
 
             products.forEach(p => {
-                const daysLeft = p.dailyUsage > 0 ? (p.stock / p.dailyUsage).toFixed(1) : '∞';
-                const itemEl = document.createElement('div');
-                itemEl.className = 'p-2 rounded bg-slate-900/60 border border-slate-700/50 flex justify-between items-center';
-
+                let daysLeft = p.dailyUsage > 0 ? (p.stock / p.dailyUsage).toFixed(1) : '∞';
                 if (p.stock <= p.alertMin) {
-                    itemEl.innerHTML = `
-                        <div>
-                            <div class="font-bold text-red-300">${p.name}</div>
-                            <div class="text-[10px] text-slate-400">Stok: ${p.stock} | Min: ${p.alertMin}</div>
-                        </div>
-                        <div class="text-right">
-                            <span class="bg-red-500/20 text-red-400 text-[10px] px-2 py-0.5 rounded font-bold border border-red-500/40">Tahan: ${daysLeft} Hari</span>
-                        </div>
-                    `;
-                    buyToday.appendChild(itemEl);
+                    buyToday.innerHTML += `
+                        <div class="bg-red-950/40 p-2 rounded border border-red-800/40 flex justify-between items-center">
+                            <div><strong>${p.name}</strong><br><span class="text-[10px] text-red-300">Baki: ${p.stock} | Min: ${p.alertMin}</span></div>
+                            <span class="bg-red-600 text-white font-bold px-2 py-0.5 rounded text-[10px]">${daysLeft} Hari</span>
+                        </div>`;
                 } else if (p.stock <= p.alertMin * 1.5) {
-                    itemEl.innerHTML = `
-                        <div>
-                            <div class="font-bold text-amber-300">${p.name}</div>
-                            <div class="text-[10px] text-slate-400">Stok: ${p.stock} | Min: ${p.alertMin}</div>
-                        </div>
-                        <div class="text-right">
-                            <span class="bg-amber-500/20 text-amber-400 text-[10px] px-2 py-0.5 rounded font-bold border border-amber-500/40">Tahan: ${daysLeft} Hari</span>
-                        </div>
-                    `;
-                    watch.appendChild(itemEl);
+                    watch.innerHTML += `
+                        <div class="bg-amber-950/40 p-2 rounded border border-amber-800/40 flex justify-between items-center">
+                            <div><strong>${p.name}</strong><br><span class="text-[10px] text-amber-300">Baki: ${p.stock}</span></div>
+                            <span class="bg-amber-600 text-white font-bold px-2 py-0.5 rounded text-[10px]">${daysLeft} Hari</span>
+                        </div>`;
                 } else {
-                    itemEl.innerHTML = `
-                        <div>
-                            <div class="font-bold text-emerald-300">${p.name}</div>
-                            <div class="text-[10px] text-slate-400">Stok: ${p.stock}</div>
-                        </div>
-                        <div class="text-right">
-                            <span class="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded font-bold border border-emerald-500/40">Tahan: ${daysLeft} Hari</span>
-                        </div>
-                    `;
-                    safe.appendChild(itemEl);
+                    safe.innerHTML += `
+                        <div class="bg-slate-800 p-2 rounded border border-slate-700 flex justify-between items-center">
+                            <div><strong>${p.name}</strong><br><span class="text-[10px] text-slate-400">Baki: ${p.stock}</span></div>
+                            <span class="bg-emerald-600/30 text-emerald-400 font-bold px-2 py-0.5 rounded text-[10px]">${daysLeft} Hari</span>
+                        </div>`;
                 }
             });
+        }
 
-            if (!buyToday.children.length) buyToday.innerHTML = '<div class="text-slate-500 italic text-[11px]">Tiada amaran kritikal</div>';
-            if (!watch.children.length) watch.innerHTML = '<div class="text-slate-500 italic text-[11px]">Tiada item berisiko</div>';
-            if (!safe.children.length) safe.innerHTML = '<div class="text-slate-500 italic text-[11px]">Tiada item dalam paras selamat</div>';
+        function processQuickStok() {
+            const pid = parseInt(document.getElementById('quick-product').value);
+            const type = document.getElementById('quick-type').value;
+            const qty = parseInt(document.getElementById('quick-qty').value);
+
+            if (!qty || qty <= 0) return alert('Sila masukkan kuantiti yang sah!');
+
+            const prod = products.find(p => p.id === pid);
+            if (!prod) return;
+
+            if (type === 'in') prod.stock += qty;
+            else {
+                if (prod.stock < qty) return alert('Stok tidak mencukupi!');
+                prod.stock -= qty;
+            }
+
+            transactions.unshift({
+                date: new Date().toISOString().split('T')[0],
+                type: type,
+                productName: prod.name,
+                qty: qty,
+                payment: type === 'in' ? 'Tunai' : 'N/A',
+                note: 'Pintas Cepat (Quick Adjust)'
+            });
+
+            document.getElementById('quick-qty').value = '';
+            saveData();
+            if (!document.getElementById('sec-dashboard').classList.contains('hidden')) renderCharts();
+        }
+
+        function updateQuickCountDisplay() {
+            const pid = parseInt(document.getElementById('quick-count-product').value);
+            const qtyInput = document.getElementById('quick-count-qty').value;
+            const statusEl = document.getElementById('quick-count-status');
+            
+            const prod = products.find(p => p.id === pid);
+            if (!prod || qtyInput === '') {
+                statusEl.innerText = 'Selisih: -';
+                statusEl.className = 'flex items-center justify-center text-xs font-bold px-2 bg-white border rounded-lg text-gray-500';
+                return;
+            }
+
+            const count = parseInt(qtyInput) || 0;
+            const diff = count - prod.stock;
+
+            if (diff === 0) {
+                statusEl.innerText = 'OK (0)';
+                statusEl.className = 'flex items-center justify-center text-xs font-bold px-2 bg-emerald-100 border border-emerald-300 rounded-lg text-emerald-700';
+            } else if (diff < 0) {
+                statusEl.innerText = `Kurang (${diff})`;
+                statusEl.className = 'flex items-center justify-center text-xs font-bold px-2 bg-red-100 border border-red-300 rounded-lg text-red-700';
+            } else {
+                statusEl.innerText = `Lebih (+${diff})`;
+                statusEl.className = 'flex items-center justify-center text-xs font-bold px-2 bg-blue-100 border border-blue-300 rounded-lg text-blue-700';
+            }
+        }
+        document.getElementById('quick-count-qty').addEventListener('input', updateQuickCountDisplay);
+
+        function processQuickCount() {
+            const pid = parseInt(document.getElementById('quick-count-product').value);
+            const qtyInput = document.getElementById('quick-count-qty').value;
+
+            if (qtyInput === '') return alert('Sila masukkan jumlah kiraan fizikal!');
+
+            const count = parseInt(qtyInput);
+            const prod = products.find(p => p.id === pid);
+            if (!prod) return;
+
+            const diff = count - prod.stock;
+            prod.stock = count;
+
+            transactions.unshift({
+                date: new Date().toISOString().split('T')[0],
+                type: diff >= 0 ? 'in' : 'out',
+                productName: prod.name,
+                qty: Math.abs(diff),
+                payment: 'N/A',
+                note: `Pelarasan Audit Fizikal (${diff >= 0 ? '+' : ''}${diff})`
+            });
+
+            document.getElementById('quick-count-qty').value = '';
+            alert(`Stok ${prod.name} telah dikemaskini kepada ${count}`);
+            saveData();
+            if (!document.getElementById('sec-dashboard').classList.contains('hidden')) renderCharts();
+        }
+
+        function addCategory() {
+            const val = document.getElementById('cat-name').value.trim();
+            if (val && !categories.includes(val)) {
+                categories.push(val);
+                document.getElementById('cat-name').value = '';
+                saveData();
+            }
+        }
+
+        function renderCategories() {
+            document.getElementById('cat-list').innerHTML = categories.map(c => `
+                <span class="bg-slate-100 text-slate-700 px-2 py-1 rounded-md text-xs font-semibold flex items-center gap-1 border">
+                    ${c}
+                </span>`).join('');
+        }
+
+        function handleProductSubmit(e) {
+            e.preventDefault();
+            const editId = document.getElementById('prod-id-edit').value;
+            const name = document.getElementById('prod-name').value.trim();
+            const cat = document.getElementById('prod-cat').value;
+            const min = parseInt(document.getElementById('prod-min').value) || 5;
+            const price = parseFloat(document.getElementById('prod-price').value) || 0;
+            const usage = parseFloat(document.getElementById('prod-usage').value) || 1.0;
+
+            if (editId) {
+                const prod = products.find(p => p.id === parseInt(editId));
+                if (prod) {
+                    prod.name = name;
+                    prod.category = cat;
+                    prod.alertMin = min;
+                    prod.unitPrice = price;
+                    prod.dailyUsage = usage;
+                }
+            } else {
+                products.push({ id: Date.now(), name, category: cat, stock: 0, alertMin: min, unitPrice: price, dailyUsage: usage });
+            }
+
+            resetProductForm();
+            saveData();
+        }
+
+        function editProduct(id) {
+            const prod = products.find(p => p.id === id);
+            if (!prod) return;
+
+            document.getElementById('prod-id-edit').value = prod.id;
+            document.getElementById('prod-name').value = prod.name;
+            document.getElementById('prod-cat').value = prod.category;
+            document.getElementById('prod-min').value = prod.alertMin;
+            document.getElementById('prod-price').value = prod.unitPrice;
+            document.getElementById('prod-usage').value = prod.dailyUsage;
+
+            document.getElementById('prod-form-title').innerText = 'Kemaskini Produk';
+            document.getElementById('prod-submit-btn').innerText = 'Simpan Perubahan';
+            document.getElementById('prod-submit-btn').className = 'w-full bg-blue-600 text-white p-2.5 rounded-lg font-medium hover:bg-blue-700 transition';
+            document.getElementById('prod-cancel-edit').classList.remove('hidden');
+        }
+
+        function resetProductForm() {
+            document.getElementById('prod-id-edit').value = '';
+            document.getElementById('form-product').reset();
+            document.getElementById('prod-form-title').innerText = 'Tambah Produk Baru';
+            document.getElementById('prod-submit-btn').innerText = 'Simpan Produk';
+            document.getElementById('prod-submit-btn').className = 'w-full bg-emerald-600 text-white p-2.5 rounded-lg font-medium hover:bg-emerald-700 transition';
+            document.getElementById('prod-cancel-edit').classList.add('hidden');
+        }
+
+        function deleteProduct(id) {
+            if (confirm('Adakah anda pasti mahu memadam produk ini?')) {
+                products = products.filter(p => p.id !== id);
+                saveData();
+            }
+        }
+
+        function renderProductTable() {
+            document.getElementById('table-products-body').innerHTML = products.map(p => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-2 font-medium">${p.name}</td>
+                    <td class="p-2 text-gray-500">${p.category}</td>
+                    <td class="p-2">${p.alertMin}</td>
+                    <td class="p-2">RM ${p.unitPrice.toFixed(2)}</td>
+                    <td class="p-2 text-right flex justify-end gap-2">
+                        <button onclick="editProduct(${p.id})" class="text-blue-600 hover:text-blue-800 font-bold p-1"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteProduct(${p.id})" class="text-red-500 hover:text-red-700 font-bold p-1"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>`).join('');
+        }
+
+        function handleTransaction(e) {
+            e.preventDefault();
+            const date = document.getElementById('tx-date').value;
+            const type = document.getElementById('tx-type').value;
+            const pid = parseInt(document.getElementById('tx-product').value);
+            const qty = parseInt(document.getElementById('tx-qty').value);
+            const payment = document.getElementById('tx-payment').value;
+            const note = document.getElementById('tx-note').value;
+
+            const prod = products.find(p => p.id === pid);
+            if (!prod) return;
+
+            if (type === 'in') prod.stock += qty;
+            else {
+                if (prod.stock < qty) return alert('Stok tidak mencukupi!');
+                prod.stock -= qty;
+            }
+
+            transactions.unshift({ date, type, productName: prod.name, qty, payment, note });
+            document.getElementById('tx-qty').value = '';
+            document.getElementById('tx-note').value = '';
+            saveData();
+        }
+
+        function renderReportTable() {
+            document.getElementById('report-table-body').innerHTML = transactions.map(t => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3">${t.date}</td>
+                    <td class="p-3 font-bold ${t.type === 'in' ? 'text-emerald-600' : 'text-red-600'}">${t.type === 'in' ? 'MASUK (+)' : 'KELUAR (-)'}</td>
+                    <td class="p-3 font-medium">${t.productName}</td>
+                    <td class="p-3 font-bold">${t.qty}</td>
+                    <td class="p-3"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px]">${t.payment}</span></td>
+                    <td class="p-3 text-gray-500">${t.note || '-'}</td>
+                </tr>`).join('');
         }
 
         function renderInventoryTable() {
-            const searchEl = document.getElementById('search-inv');
-            const catFilterEl = document.getElementById('filter-inventory-cat');
-            const tbody = document.getElementById('inventory-table-body');
-
-            if (!tbody) return;
-
-            const search = searchEl ? searchEl.value.toLowerCase() : '';
-            const catFilter = catFilterEl ? catFilterEl.value : '';
+            const search = document.getElementById('search-inv').value.toLowerCase();
+            const catFilter = document.getElementById('filter-inventory-cat').value;
 
             const filtered = products.filter(p => {
-                const matchSearch = p.name.toLowerCase().includes(search);
-                const matchCat = catFilter ? p.category === catFilter : true;
-                return matchSearch && matchCat;
+                const matchesSearch = p.name.toLowerCase().includes(search);
+                const matchesCat = catFilter === 'ALL' || p.category === catFilter;
+                return matchesSearch && matchesCat;
             });
 
-            tbody.innerHTML = filtered.map(p => {
-                const daysLeft = p.dailyUsage > 0 ? (p.stock / p.dailyUsage).toFixed(1) : '∞';
-                const totalVal = p.stock * p.unitPrice;
-                let statusBadge = '<span class="bg-emerald-100 text-emerald-800 px-2 py-1 rounded text-[10px] font-bold">Selamat</span>';
-                if (p.stock === 0) statusBadge = '<span class="bg-red-100 text-red-800 px-2 py-1 rounded text-[10px] font-bold">Habis</span>';
-                else if (p.stock <= p.alertMin) statusBadge = '<span class="bg-amber-100 text-amber-800 px-2 py-1 rounded text-[10px] font-bold">Rendah</span>';
+            document.getElementById('inventory-table-body').innerHTML = filtered.map(p => {
+                let daysLeft = p.dailyUsage > 0 ? (p.stock / p.dailyUsage).toFixed(1) : '∞';
+                let totalVal = p.stock * p.unitPrice;
+                let statusBadge = p.stock <= 0 ? '<span class="bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded">HABIS</span>' :
+                                  p.stock <= p.alertMin ? '<span class="bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded">LOW</span>' :
+                                  '<span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">OK</span>';
 
                 return `
-                    <tr class="hover:bg-gray-50">
-                        <td class="p-3 font-semibold text-slate-800">${p.name}</td>
-                        <td class="p-3 text-gray-500">${p.category}</td>
-                        <td class="p-3 font-bold ${p.stock <= p.alertMin ? 'text-red-600' : 'text-slate-800'}">${p.stock}</td>
-                        <td class="p-3 text-gray-500">${p.alertMin}</td>
-                        <td class="p-3 font-medium text-slate-700">${daysLeft} Hari</td>
-                        <td class="p-3 text-gray-500">RM ${p.unitPrice.toFixed(2)}</td>
-                        <td class="p-3 font-bold text-slate-800">RM ${totalVal.toFixed(2)}</td>
-                        <td class="p-3">${statusBadge}</td>
-                    </tr>
-                `;
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3 font-bold text-slate-800">${p.name}</td>
+                    <td class="p-3 text-gray-500">${p.category}</td>
+                    <td class="p-3 font-black ${p.stock <= p.alertMin ? 'text-red-600' : 'text-slate-800'}">${p.stock}</td>
+                    <td class="p-3 text-gray-400">${p.alertMin}</td>
+                    <td class="p-3 font-medium text-amber-600">${daysLeft} Hari</td>
+                    <td class="p-3">RM ${p.unitPrice.toFixed(2)}</td>
+                    <td class="p-3 font-semibold">RM ${totalVal.toFixed(2)}</td>
+                    <td class="p-3">${statusBadge}</td>
+                </tr>`;
             }).join('');
         }
 
-        // --- PURCHASING & SUPPLIERS ---
-        function renderSuppliers() {
-            const container = document.getElementById('supplier-cards-container');
-            const poSuppSelect = document.getElementById('po-supplier');
-            
-            if (poSuppSelect) {
-                poSuppSelect.innerHTML = suppliers.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
-            }
+        function createPO() {
+            const supp = document.getElementById('po-supplier').value;
+            const item = document.getElementById('po-item').value;
+            const qty = parseInt(document.getElementById('po-qty').value);
 
-            if (container) {
-                container.innerHTML = suppliers.map(s => `
-                    <div class="bg-white p-4 rounded-xl border shadow-sm space-y-2">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h4 class="font-bold text-slate-800 text-sm">${s.name}</h4>
-                                <p class="text-xs text-slate-500"><i class="fa-solid fa-phone mr-1"></i>${s.contact}</p>
-                            </div>
-                            <span class="bg-indigo-50 text-indigo-700 text-[10px] px-2 py-0.5 rounded font-bold border border-indigo-200">Score: ${s.rating}</span>
-                        </div>
-                        <div class="text-xs text-slate-600 border-t pt-2">
-                            <p><strong>Item Dibekal:</strong> ${s.items}</p>
-                            <p><strong>Tempoh Hantar:</strong> ${s.delivery}</p>
-                        </div>
-                    </div>
-                `).join('');
-            }
+            if (!qty || qty <= 0) return alert('Masukkan kuantiti order!');
+
+            const newPO = {
+                id: `PO-${Math.floor(1000 + Math.random() * 9000)}`,
+                supplier: supp,
+                item: item,
+                qty: qty,
+                status: 'Pending'
+            };
+
+            purchaseOrders.unshift(newPO);
+            document.getElementById('po-qty').value = '';
+            saveData();
+        }
+
+        function renderPOList() {
+            document.getElementById('po-list-body').innerHTML = purchaseOrders.map(po => `
+                <tr class="border-b hover:bg-slate-50">
+                    <td class="p-2 font-bold text-slate-800">${po.id}</td>
+                    <td class="p-2">${po.supplier}</td>
+                    <td class="p-2 font-medium">${po.item}</td>
+                    <td class="p-2 font-bold">${po.qty}</td>
+                    <td class="p-2"><span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold text-[10px]">${po.status}</span></td>
+                </tr>`).join('');
         }
 
         function handleAddSupplier(e) {
@@ -943,226 +884,138 @@ input, button, select, table {
             const contact = document.getElementById('supp-contact').value.trim();
             const items = document.getElementById('supp-items').value.trim();
             const delivery = document.getElementById('supp-delivery').value.trim() || '1 Hari';
-            const rating = document.getElementById('supp-rating').value.trim() || '100%';
+            const rating = document.getElementById('supp-rating').value.trim() || '95%';
 
             suppliers.push({ id: Date.now(), name, contact, items, delivery, rating });
-            saveData();
-            renderSuppliers();
             e.target.reset();
+            saveData();
         }
 
-        function createPO() {
-            const supplier = document.getElementById('po-supplier').value;
-            const productId = document.getElementById('po-item').value;
-            const qty = parseFloat(document.getElementById('po-qty').value);
+        function renderSupplierCards() {
+            document.getElementById('supplier-cards-container').innerHTML = suppliers.map(s => `
+                <div class="border p-4 rounded-lg space-y-2 bg-slate-50/50">
+                    <h4 class="font-bold text-sm text-amber-600">${s.name}</h4>
+                    <p class="text-xs text-gray-600">Hubungi: ${s.contact}</p>
+                    <p class="text-xs text-gray-600">Item: ${s.items}</p>
+                    <div class="flex gap-4 pt-2 text-xs">
+                        <span class="bg-white border p-1.5 rounded">Masa Hantar: <strong>${s.delivery}</strong></span>
+                        <span class="bg-white border p-1.5 rounded">Prestasi Skor: <strong>${s.rating}</strong></span>
+                    </div>
+                </div>`).join('');
+        }
 
-            const prod = products.find(p => p.id == productId);
-            if (!prod || isNaN(qty) || qty <= 0) {
-                alert('Sila isi maklumat pesanan PO yang sah.');
+        function renderCountTable() {
+            document.getElementById('count-table-body').innerHTML = products.map(p => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3 font-bold">${p.name}</td>
+                    <td class="p-3 text-slate-600 font-bold">${p.stock}</td>
+                    <td class="p-3"><input type="number" oninput="calculateVariance(${p.id}, this.value)" placeholder="Kiraan Fizikal" class="p-1 border rounded w-28 bg-white"></td>
+                    <td class="p-3 font-bold text-slate-700" id="var-${p.id}">-</td>
+                    <td class="p-3" id="stat-${p.id}"><span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded">Belum Semak</span></td>
+                </tr>`).join('');
+        }
+
+        function calculateVariance(id, val) {
+            const p = products.find(prod => prod.id === id);
+            const varEl = document.getElementById(`var-${id}`);
+            const statEl = document.getElementById(`stat-${id}`);
+
+            if (val === '') {
+                varEl.innerText = '-';
+                statEl.innerHTML = '<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded">Belum Semak</span>';
                 return;
             }
 
-            const po = {
-                id: 'PO-' + Math.floor(1000 + Math.random() * 9000),
-                supplier,
-                productName: prod.name,
-                productId: prod.id,
-                qty,
-                status: 'Pending'
-            };
+            const count = parseInt(val) || 0;
+            const diff = count - p.stock;
 
-            purchaseOrders.unshift(po);
-            saveData();
-            renderPOList();
-            document.getElementById('po-qty').value = '';
+            if (diff === 0) {
+                varEl.innerText = '0';
+                varEl.className = 'p-3 font-bold text-emerald-600';
+                statEl.innerHTML = '<span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">PADAN (OK)</span>';
+            } else if (diff < 0) {
+                varEl.innerText = `${diff}`;
+                varEl.className = 'p-3 font-bold text-red-600';
+                statEl.innerHTML = '<span class="bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded">KURANG (RUGI)</span>';
+            } else {
+                varEl.innerText = `+${diff}`;
+                varEl.className = 'p-3 font-bold text-blue-600';
+                statEl.innerHTML = '<span class="bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded">LEBIH</span>';
+            }
         }
 
-        function receivePO(poId) {
-            const po = purchaseOrders.find(p => p.id === poId);
-            if (!po || po.status === 'Diterima') return;
-
-            po.status = 'Diterima';
-            const today = new Date().toISOString().split('T')[0];
-            recordTransaction(today, 'in', po.productId, po.qty, 'Invois/Kredit', `Terima PO ${po.id} dari ${po.supplier}`);
-
-            saveData();
-            renderPOList();
-        }
-
-        function renderPOList() {
-            const tbody = document.getElementById('po-list-body');
-            if (!tbody) return;
-            tbody.innerHTML = purchaseOrders.map(po => `
-                <tr class="hover:bg-slate-50">
-                    <td class="p-2 font-bold text-slate-700">${po.id}</td>
-                    <td class="p-2">${po.supplier}</td>
-                    <td class="p-2">${po.productName}</td>
-                    <td class="p-2 font-semibold">${po.qty}</td>
-                    <td class="p-2">
-                        ${po.status === 'Pending' 
-                            ? `<button onclick="receivePO('${po.id}')" class="bg-amber-500 hover:bg-amber-600 text-white px-2 py-1 rounded text-[10px] font-bold">Terima Barang</button>`
-                            : `<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px] font-bold">Diterima</span>`
-                        }
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        // --- STOCK COUNT & LAPORAN ---
-        function renderStockCountTable() {
-            const tbody = document.getElementById('count-table-body');
-            if (!tbody) return;
-            tbody.innerHTML = products.map(p => {
-                const countData = stockCounts[p.id] || { physical: '-', diff: '-', date: '-' };
-                let diffBadge = '-';
-                if (countData.diff !== '-') {
-                    if (countData.diff === 0) diffBadge = '<span class="text-emerald-600 font-bold">0</span>';
-                    else if (countData.diff > 0) diffBadge = `<span class="text-blue-600 font-bold">+${countData.diff}</span>`;
-                    else diffBadge = `<span class="text-rose-600 font-bold">${countData.diff}</span>`;
-                }
-
-                return `
-                    <tr class="hover:bg-gray-50">
-                        <td class="p-3 font-semibold text-slate-800">${p.name}</td>
-                        <td class="p-3 font-bold">${p.stock}</td>
-                        <td class="p-3 font-semibold text-slate-700">${countData.physical}</td>
-                        <td class="p-3">${diffBadge}</td>
-                        <td class="p-3 text-gray-400 text-[10px]">${countData.date}</td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        function renderReports() {
-            const tbody = document.getElementById('report-table-body');
-            if (!tbody) return;
-            tbody.innerHTML = transactions.map(t => `
-                <tr class="hover:bg-gray-50">
-                    <td class="p-3 text-gray-500">${t.date}</td>
-                    <td class="p-3">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${t.type === 'in' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
-                            ${t.type === 'in' ? 'MASUK (+)' : 'KELUAR (-)'}
-                        </span>
-                    </td>
-                    <td class="p-3 font-semibold text-slate-800">${t.productName}</td>
-                    <td class="p-3 font-bold">${t.qty}</td>
-                    <td class="p-3 text-gray-600">${t.payment}</td>
-                    <td class="p-3 text-gray-500 italic">${t.note || '-'}</td>
-                </tr>
-            `).join('');
-        }
-
-        // --- CARTA CHART.JS ---
         function renderCharts() {
-            renderStokSemasaChart();
-            renderPenggunaanChart();
-        }
+            const ctxStok = document.getElementById('chartStokSemasa').getContext('2d');
+            const ctxPenggunaan = document.getElementById('chartPenggunaan').getContext('2d');
 
-        function renderStokSemasaChart() {
-            const canvas = document.getElementById('chartStokSemasa');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return;
+            if (chartStokInstance) chartStokInstance.destroy();
+            if (chartPenggunaanInstance) chartPenggunaanInstance.destroy();
 
-            const labels = products.map(p => p.name);
-            const dataStock = products.map(p => p.stock);
-            const dataMin = products.map(p => p.alertMin);
-
-            if (chartStokSemasaInstance) chartStokSemasaInstance.destroy();
-
-            chartStokSemasaInstance = new Chart(ctx, {
+            chartStokInstance = new Chart(ctxStok, {
                 type: 'bar',
                 data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'Stok Semasa',
-                            data: dataStock,
-                            backgroundColor: '#3b82f6',
-                            borderRadius: 4
-                        },
-                        {
-                            label: 'Had Minimum (Alert)',
-                            data: dataMin,
-                            backgroundColor: '#f59e0b',
-                            borderRadius: 4
-                        }
-                    ]
+                    labels: products.map(p => p.name),
+                    datasets: [{
+                        label: 'Stok Semasa',
+                        data: products.map(p => p.stock),
+                        backgroundColor: products.map(p => p.stock <= p.alertMin ? 'rgba(239, 68, 68, 0.8)' : 'rgba(16, 185, 129, 0.8)'),
+                        borderRadius: 6
+                    }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } },
-                    scales: { y: { beginAtZero: true } }
-                }
+                options: { responsive: true, maintainAspectRatio: false }
             });
-        }
 
-        function renderPenggunaanChart() {
-            const canvas = document.getElementById('chartPenggunaan');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return;
-
-            const startEl = document.getElementById('chart-filter-start');
-            const endEl = document.getElementById('chart-filter-end');
-            const prodEl = document.getElementById('chart-filter-product');
-
-            const startDate = startEl ? startEl.value : null;
-            const endDate = endEl ? endEl.value : null;
-            const prodFilter = prodEl ? prodEl.value : null;
+            const startDate = document.getElementById('chart-filter-start').value;
+            const endDate = document.getElementById('chart-filter-end').value;
+            const selectedProdId = document.getElementById('chart-filter-product').value;
 
             let filteredTx = transactions.filter(t => t.type === 'out');
 
             if (startDate) filteredTx = filteredTx.filter(t => t.date >= startDate);
             if (endDate) filteredTx = filteredTx.filter(t => t.date <= endDate);
-            if (prodFilter) filteredTx = filteredTx.filter(t => t.productId == prodFilter);
 
-            const usageMap = {};
-            filteredTx.forEach(t => {
-                usageMap[t.date] = (usageMap[t.date] || 0) + t.qty;
-            });
+            let chartLabels = [];
+            let chartData = [];
 
-            const sortedDates = Object.keys(usageMap).sort();
-            const dataUsage = sortedDates.map(d => usageMap[d]);
+            if (selectedProdId !== 'ALL' && selectedProdId !== '') {
+                const prod = products.find(p => p.id === parseInt(selectedProdId));
+                if (prod) {
+                    const txByProd = filteredTx.filter(t => t.productName === prod.name);
+                    const dates = [...new Set(txByProd.map(t => t.date))].sort();
+                    chartLabels = dates.length > 0 ? dates : ['Tiada Rekod'];
+                    chartData = dates.map(d => txByProd.filter(t => t.date === d).reduce((sum, t) => sum + t.qty, 0));
+                }
+            } else {
+                chartLabels = products.map(p => p.name);
+                chartData = products.map(p => {
+                    return filteredTx
+                        .filter(t => t.productName === p.name)
+                        .reduce((acc, t) => acc + t.qty, 0);
+                });
+            }
 
-            if (chartPenggunaanInstance) chartPenggunaanInstance.destroy();
-
-            chartPenggunaanInstance = new Chart(ctx, {
+            chartPenggunaanInstance = new Chart(ctxPenggunaan, {
                 type: 'line',
                 data: {
-                    labels: sortedDates.length ? sortedDates : ['Tiada Data'],
+                    labels: chartLabels,
                     datasets: [{
-                        label: 'Jumlah Kuantiti Keluar',
-                        data: dataUsage.length ? dataUsage : [0],
-                        borderColor: '#e11d48',
-                        backgroundColor: 'rgba(225, 29, 72, 0.1)',
+                        label: 'Penggunaan (Keluar)',
+                        data: chartData,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.2)',
                         fill: true,
                         tension: 0.3
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } },
-                    scales: { y: { beginAtZero: true } }
-                }
+                options: { responsive: true, maintainAspectRatio: false }
             });
         }
 
-        function refreshAllViews() {
-            renderProductDropdowns();
-            renderProductsTable();
-            renderInventoryTable();
-            renderDecisionCenter();
-            renderMetrics();
-            renderPOList();
-            renderStockCountTable();
-            renderReports();
+        window.onload = function() {
+            document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
+            saveData();
             renderCharts();
-        }
+        };
     </script>
 </body>
-</html>  
-
-            
+</html>
