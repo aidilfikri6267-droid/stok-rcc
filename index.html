@@ -8,12 +8,11 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Firebase SDK (Modular ESM Core & Firestore) -->
+    <!-- Firebase Realtime Database SDK (ESM Module) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Konfirmasi Kunci Konfigurasi Firebase Anda
         const firebaseConfig = {
           apiKey: "AIzaSyAcxIm0xe1MgHkRSuVeqc4uZgKvF-QB4yo",
           authDomain: "sistem-stok-rcc.firebaseapp.com",
@@ -24,39 +23,40 @@
           measurementId: "G-LCZSSK4DJY"
         };
 
-        // Initialize Firebase & Firestore
+        // Initialize Firebase & Realtime Database
         const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        const db = getDatabase(app);
 
-        // Fungsi Simpan Data ke Firebase Firestore
+        // Fungsi Simpan Data ke Realtime Database
         window.saveData = async function() {
             try {
-                // Simpan ke peranti tempatan sebagai sandaran tempatan
+                // Simpan ke peranti tempatan (Local Storage Backup)
                 localStorage.setItem('rtc_categories_v4', JSON.stringify(window.categories));
                 localStorage.setItem('rtc_products_v4', JSON.stringify(window.products));
                 localStorage.setItem('rtc_transactions_v4', JSON.stringify(window.transactions));
 
-                // Simpan/Sinki data ke Cloud Firestore
-                await setDoc(doc(db, "stok_roti_canai", "app_data"), {
-                    categories: window.categories,
-                    products: window.products,
-                    transactions: window.transactions
+                // Sinki data ke Firebase Realtime Database secara Live
+                await set(ref(db, 'app_data'), {
+                    categories: window.categories || [],
+                    products: window.products || [],
+                    transactions: window.transactions || []
                 });
             } catch (error) {
-                console.error("Ralat menyimpan data ke Firebase:", error);
+                console.error("Ralat menyimpan data ke Realtime Database:", error);
             }
         };
 
-        // Fungsi Ambil Data dari Firebase Firestore (Masa Nyata / Realtime)
+        // Fungsi Dengar Perubahan Data Masa-Nyata (Realtime Sync Laptop <-> Phone)
         function loadFirebaseData() {
-            onSnapshot(doc(db, "stok_roti_canai", "app_data"), (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
+            const dataRef = ref(db, 'app_data');
+            onValue(dataRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
                     if (data.categories) window.categories = data.categories;
                     if (data.products) window.products = data.products;
                     if (data.transactions) window.transactions = data.transactions;
                     
-                    // Kemaskini semula rekod tempatan & render paparan
+                    // Update Local Storage
                     localStorage.setItem('rtc_categories_v4', JSON.stringify(window.categories));
                     localStorage.setItem('rtc_products_v4', JSON.stringify(window.products));
                     localStorage.setItem('rtc_transactions_v4', JSON.stringify(window.transactions));
@@ -66,11 +66,10 @@
                     }
                 }
             }, (error) => {
-                console.error("Ralat mengambil data dari Firebase:", error);
+                console.error("Ralat mengambil data dari Realtime Database:", error);
             });
         }
 
-        // Panggil penarik data Firebase apabila halaman dimuatkan
         window.addEventListener('DOMContentLoaded', () => {
             loadFirebaseData();
         });
@@ -96,7 +95,6 @@
                     <p class="text-xs text-amber-400 font-medium">Sistem Stok Decision-First</p>
                 </div>
             </div>
-            <!-- Close button for mobile menu -->
             <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white">
                 <i class="fa-solid fa-xmark text-xl"></i>
             </button>
@@ -535,7 +533,7 @@
 
         function renderCategories() {
             const catList = document.getElementById('cat-list');
-            catList.innerHTML = window.categories.map(c => `
+            catList.innerHTML = (window.categories || []).map(c => `
                 <span class="bg-slate-100 text-slate-700 text-xs px-2.5 py-1 rounded-full border flex items-center gap-1 font-medium">
                     ${c}
                 </span>
@@ -543,14 +541,14 @@
         }
 
         function renderProductDropdowns() {
-            const prodOptions = window.products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            const prodOptions = (window.products || []).map(p => `<option value="${p.id}">${p.name}</option>`).join('');
             
             document.getElementById('quick-product').innerHTML = prodOptions;
             document.getElementById('quick-count-product').innerHTML = prodOptions;
             document.getElementById('tx-product').innerHTML = prodOptions;
             
-            const catOptions = `<option value="ALL">Semua Kategori</option>` + window.categories.map(c => `<option value="${c}">${c}</option>`).join('');
-            document.getElementById('prod-cat').innerHTML = window.categories.map(c => `<option value="${c}">${c}</option>`).join('');
+            const catOptions = `<option value="ALL">Semua Kategori</option>` + (window.categories || []).map(c => `<option value="${c}">${c}</option>`).join('');
+            document.getElementById('prod-cat').innerHTML = (window.categories || []).map(c => `<option value="${c}">${c}</option>`).join('');
             document.getElementById('filter-inventory-cat').innerHTML = catOptions;
 
             const chartProdOptions = `<option value="ALL">Semua Produk</option>` + prodOptions;
@@ -567,7 +565,7 @@
             const watchList = [];
             const safeList = [];
 
-            window.products.forEach(p => {
+            (window.products || []).forEach(p => {
                 const val = p.stock * p.unitPrice;
                 totalVal += val;
 
@@ -620,7 +618,7 @@
                 }
             });
 
-            document.getElementById('m-total-item').innerText = window.products.length;
+            document.getElementById('m-total-item').innerText = (window.products || []).length;
             document.getElementById('m-critical').innerText = critical;
             document.getElementById('m-low').innerText = low;
             document.getElementById('m-healthy').innerText = healthy;
@@ -633,7 +631,7 @@
 
         function renderProductsTable() {
             const body = document.getElementById('table-products-body');
-            body.innerHTML = window.products.map(p => `
+            body.innerHTML = (window.products || []).map(p => `
                 <tr class="hover:bg-gray-50">
                     <td class="p-2 font-bold text-slate-800">${p.name}</td>
                     <td class="p-2">${p.category}</td>
@@ -652,7 +650,7 @@
             const search = document.getElementById('search-inv').value.toLowerCase();
             const catFilter = document.getElementById('filter-inventory-cat').value;
 
-            const filtered = window.products.filter(p => {
+            const filtered = (window.products || []).filter(p => {
                 const matchSearch = p.name.toLowerCase().includes(search);
                 const matchCat = catFilter === 'ALL' || p.category === catFilter;
                 return matchSearch && matchCat;
@@ -683,7 +681,7 @@
 
         function renderCountTable() {
             const body = document.getElementById('count-table-body');
-            body.innerHTML = window.products.map(p => `
+            body.innerHTML = (window.products || []).map(p => `
                 <tr class="hover:bg-gray-50">
                     <td class="p-3 font-bold text-slate-800">${p.name}</td>
                     <td class="p-3 font-semibold">${p.stock}</td>
@@ -700,8 +698,8 @@
 
         function renderReportsTable() {
             const body = document.getElementById('report-table-body');
-            body.innerHTML = window.transactions.slice().reverse().map(t => {
-                const p = window.products.find(x => x.id == t.productId);
+            body.innerHTML = (window.transactions || []).slice().reverse().map(t => {
+                const p = (window.products || []).find(x => x.id == t.productId);
                 const pName = p ? p.name : 'Item Dipadam';
                 const typeBadge = t.type === 'in' 
                     ? '<span class="text-emerald-600 font-bold">+ MASUK</span>' 
@@ -932,10 +930,9 @@
         }
 
         function renderCharts() {
-            // Render Chart Stok Semasa
             const ctxStok = document.getElementById('chartStokSemasa').getContext('2d');
-            const stokLabels = window.products.map(p => p.name);
-            const stokData = window.products.map(p => p.stock);
+            const stokLabels = (window.products || []).map(p => p.name);
+            const stokData = (window.products || []).map(p => p.stock);
 
             if (chartStokInstance) chartStokInstance.destroy();
             chartStokInstance = new Chart(ctxStok, {
@@ -957,13 +954,12 @@
                 }
             });
 
-            // Render Chart Penggunaan
             const ctxPenggunaan = document.getElementById('chartPenggunaan').getContext('2d');
             const startDate = document.getElementById('chart-filter-start').value;
             const endDate = document.getElementById('chart-filter-end').value;
             const filterProduct = document.getElementById('chart-filter-product').value;
 
-            let outTx = window.transactions.filter(t => t.type === 'out');
+            let outTx = (window.transactions || []).filter(t => t.type === 'out');
 
             if (startDate) outTx = outTx.filter(t => t.date >= startDate);
             if (endDate) outTx = outTx.filter(t => t.date <= endDate);
@@ -971,7 +967,7 @@
 
             const aggregated = {};
             outTx.forEach(t => {
-                const p = window.products.find(x => x.id == t.productId);
+                const p = (window.products || []).find(x => x.id == t.productId);
                 const name = p ? p.name : 'Lain-lain';
                 aggregated[name] = (aggregated[name] || 0) + parseFloat(t.qty);
             });
