@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Pengurusan Stok Roti Canai & Kedai Makan (V4 Pro)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -14,10 +14,8 @@
 </head>
 <body class="bg-gray-100 font-sans flex flex-col md:flex-row h-screen overflow-hidden text-gray-800 relative">
 
-    <!-- Mobile Overlay Backdrop -->
     <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden"></div>
 
-    <!-- Sidebar Responsive -->
     <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0 border-r border-slate-800 transition-transform duration-300 -translate-x-full md:translate-x-0">
         <div class="p-5 border-b border-slate-800 flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -47,6 +45,9 @@
             </button>
             <button onclick="switchTab('reports')" id="nav-reports" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg font-medium hover:bg-slate-800 hover:text-white transition">
                 <i class="fa-solid fa-file-lines w-5 text-teal-400"></i><span>7. Laporan Transaksi</span>
+            </button>
+            <button onclick="switchTab('tutorial')" id="nav-tutorial" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg font-medium hover:bg-slate-800 hover:text-white transition">
+                <i class="fa-solid fa-book-open w-5 text-purple-400"></i><span>8. Tutorial Cara Guna</span>
             </button>
         </nav>
     </aside>
@@ -393,10 +394,71 @@
                 </div>
             </section>
 
+            <section id="sec-tutorial" class="hidden space-y-6">
+                <div class="bg-white p-6 rounded-xl border shadow-sm space-y-6">
+                    <div class="border-b pb-4">
+                        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-book-open text-purple-600"></i> Panduan Penggunaan Sistem Stok
+                        </h3>
+                        <p class="text-xs text-gray-500 mt-1">Langkah demi langkah untuk mengurus inventori restoran anda secara efisien.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+                        <div class="bg-slate-50 p-4 rounded-xl border space-y-2">
+                            <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                <span class="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span>
+                                Pengurusan Produk & Kategori
+                            </h4>
+                            <p class="text-gray-600">Pergi ke menu <b>Pengurusan & Rekod</b> untuk pendaftaran asas:</p>
+                            <ul class="list-disc list-inside text-gray-600 space-y-1 pl-1">
+                                <li>Bina kategori bahan (cth: Bahan Mentah, Minuman, Pembungkusan).</li>
+                                <li>Daftar nama produk, harga seunit, had minimum amaran (alert), dan anggaran penggunaan harian.</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-slate-50 p-4 rounded-xl border space-y-2">
+                            <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                <span class="bg-emerald-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span>
+                                Merekod Transaksi Stok
+                            </h4>
+                            <p class="text-gray-600">Kemas kini pergerakan barang secara mendalam atau pantas:</p>
+                            <ul class="list-disc list-inside text-gray-600 space-y-1 pl-1">
+                                <li><b>Pintas Cepat (Quick Adjust):</b> Gunakan di Dashboard untuk masukkan stok baharu atau rekod penggunaan harian secara pantas.</li>
+                                <li><b>Borang Transaksi:</b> Rekod lengkap beserta cara pembayaran (Tunai, Kredit) dan nota pembekal.</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-slate-50 p-4 rounded-xl border space-y-2">
+                            <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                <span class="bg-amber-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">3</span>
+                                Decision Center & Semakan Inventori
+                            </h4>
+                            <p class="text-gray-600">Pantau keputusan automatik dapur:</p>
+                            <ul class="list-disc list-inside text-gray-600 space-y-1 pl-1">
+                                <li><b>🔴 BELI HARI INI:</b> Barang yang telah mencapai had minimum.</li>
+                                <li><b>🟠 PERHATIKAN:</b> Stok yang disanggah akan habis dalam masa 3 hari.</li>
+                                <li><b>Inventori Penuh:</b> Semak anggaran ketahanan hari dan jumlah nilai aset di dapur anda.</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-slate-50 p-4 rounded-xl border space-y-2">
+                            <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                <span class="bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">4</span>
+                                Audit Stok (Stock Count) & Laporan
+                            </h4>
+                            <p class="text-gray-600">Pastikan rekod seiring dengan fizikal:</p>
+                            <ul class="list-disc list-inside text-gray-600 space-y-1 pl-1">
+                                <li>Lakukan kiraan fizikal di menu <b>Stock Count</b> untuk melihat selisih (variance). Sistem akan menyelaras baki stok secara automatik.</li>
+                                <li>Semak sejarah transaksi menyeluruh di menu <b>Laporan Transaksi</b>.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
         </div>
     </main>
 
-    <!-- PENTING: Integrasi Firebase Modul -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -417,14 +479,8 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        let categories = ['Bahan Mentah', 'Inti & Bumbu', 'Pembungkusan', 'Barangan Minuman'];
-        let products = [
-            { id: 1, name: 'Tepung Gandum (Kg)', category: 'Bahan Mentah', stock: 50, alertMin: 10, unitPrice: 3.50, dailyUsage: 5.0 },
-            { id: 2, name: 'Minyak Sapi (Tin)', category: 'Bahan Mentah', stock: 3, alertMin: 5, unitPrice: 28.00, dailyUsage: 1.2 },
-            { id: 3, name: 'Telur Ayam (Papan)', category: 'Bahan Mentah', stock: 0, alertMin: 2, unitPrice: 14.00, dailyUsage: 2.0 },
-            { id: 4, name: 'Beras Basmathi (Kg)', category: 'Bahan Mentah', stock: 40, alertMin: 10, unitPrice: 9.50, dailyUsage: 4.0 },
-            { id: 5, name: 'Plastik Bungkus 6x9', category: 'Pembungkusan', stock: 15, alertMin: 5, unitPrice: 4.50, dailyUsage: 1.0 }
-        ];
+        let categories = [];
+        let products = [];
         let transactions = [];
 
         let chartStokInstance = null;
@@ -434,9 +490,9 @@
         onValue(ref(db, 'rtc_v4'), (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                if (data.categories) categories = data.categories;
-                if (data.products) products = data.products;
-                if (data.transactions) transactions = data.transactions;
+                categories = data.categories || [];
+                products = data.products || [];
+                transactions = data.transactions || [];
             } else {
                 saveData();
             }
@@ -473,7 +529,8 @@
                 pengurusan: 'PENGURUSAN PRODUK & REKOD',
                 inventory: 'INVENTORI PENUH',
                 count: 'AUDIT & STOCK COUNT',
-                reports: 'LAPORAN TRANSAKSI'
+                reports: 'LAPORAN TRANSAKSI',
+                tutorial: 'TUTORIAL CARA GUNA'
             };
             document.getElementById('page-title').innerText = titles[tab] || 'DASHBOARD';
 
